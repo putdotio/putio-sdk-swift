@@ -32,7 +32,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@97ecb7b512899eb71ab1bf2310a624c6f1589ac6 # v1
+        uses: ruby/setup-ruby@afeafc3d1ab54a631816aba4c914a0081c12ff2f # v1
         with:
           ruby-version: .ruby-version
           bundler-cache: true
@@ -99,7 +99,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@97ecb7b512899eb71ab1bf2310a624c6f1589ac6 # v1
+        uses: ruby/setup-ruby@afeafc3d1ab54a631816aba4c914a0081c12ff2f # v1
         with:
           ruby-version: .ruby-version
           bundler-cache: true
