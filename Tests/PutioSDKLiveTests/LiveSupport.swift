@@ -4,6 +4,8 @@ import XCTest
 @testable import PutioSDK
 
 enum LiveSupport {
+    private static let envFileValues: [String: String] = loadEnvFiles([".env.local", ".env"])
+
     static func newAuthedClient() throws -> PutioSDK {
         let token = try requiredValue("PUTIO_TOKEN_FIRST_PARTY", aliases: ["PUTIO_ACCESS_TOKEN", "PUTIO_TOKEN"])
         let clientID = try runtimeValue("PUTIO_CLIENT_ID") ?? ""
@@ -30,6 +32,7 @@ enum LiveSupport {
 
     private static func env(_ name: String) -> String? {
         ProcessInfo.processInfo.environment[name]?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            ?? envFileValues[name]
     }
 
     private static func requiredValue(_ primary: String, aliases: [String] = []) throws -> String {
@@ -47,68 +50,46 @@ enum LiveSupport {
             }
         }
 
-        switch primary {
-        case "PUTIO_TOKEN_FIRST_PARTY":
-            return try runtimeFieldValue(label: "access_token", sectionLabel: "first_party")
-        case "PUTIO_CLIENT_ID":
-            return try runtimeFieldValue(label: "app_id", sectionLabel: "third_party")
-                ?? runtimeFieldValue(label: "third_party_app_id", sectionLabel: nil)
-        default:
-            return nil
+        return nil
+    }
+
+    private static func loadEnvFiles(_ paths: [String]) -> [String: String] {
+        paths.reduce(into: [:]) { values, path in
+            guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
+                return
+            }
+
+            for line in contents.components(separatedBy: .newlines) {
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                guard !trimmed.isEmpty, !trimmed.hasPrefix("#"), let separator = trimmed.firstIndex(of: "=") else {
+                    continue
+                }
+
+                let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let rawValue = String(trimmed[trimmed.index(after: separator)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let value = unquote(rawValue).nilIfEmpty
+
+                if !key.isEmpty, let value {
+                    values[key] = value
+                }
+            }
         }
     }
 
-    private static func runtimeFieldValue(label: String, sectionLabel: String?) throws -> String? {
-        guard let fields = try runtimeItemFields() else {
-            return nil
+    private static func unquote(_ value: String) -> String {
+        guard value.count >= 2 else {
+            return value
         }
 
-        return fields.first { field in
-            let fieldLabel = field["label"] as? String
-            let section = (field["section"] as? [String: Any])?["label"] as? String
-            return fieldLabel == label && section == sectionLabel
-        }?["value"] as? String
-    }
+        let first = value.first
+        let last = value.last
 
-    private static func runtimeItemFields() throws -> [[String: Any]]? {
-        guard
-            let runtimeItemID = env("PUTIO_1PASSWORD_RUNTIME_ITEM_ID"),
-            let runtimeItemVault = env("PUTIO_1PASSWORD_RUNTIME_VAULT"),
-            env("OP_SERVICE_ACCOUNT_TOKEN") != nil
-        else {
-            return nil
+        if (first == "\"" && last == "\"") || (first == "'" && last == "'") {
+            return String(value.dropFirst().dropLast())
         }
 
-        let process = Process()
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [
-            "op",
-            "item",
-            "get",
-            runtimeItemID,
-            "--vault",
-            runtimeItemVault,
-            "--format",
-            "json",
-            "--reveal",
-        ]
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-        try process.run()
-        process.waitUntilExit()
-
-        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-
-        guard process.terminationStatus == 0 else {
-            let errorText = String(data: errorData, encoding: .utf8) ?? "unknown op error"
-            throw XCTSkip("Unable to read 1Password runtime item: \(errorText)")
-        }
-
-        let json = try JSONSerialization.jsonObject(with: outputData) as? [String: Any]
-        return json?["fields"] as? [[String: Any]]
+        return value
     }
 }
 

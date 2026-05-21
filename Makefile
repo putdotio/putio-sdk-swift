@@ -1,5 +1,7 @@
 .PHONY: bootstrap verify verify-spm coverage-check live-test example-install print-simulator-destination secrets-setup secrets-clean clean
 
+SECRETS_OUTPUT ?= .env.local
+
 bootstrap:
 	bundle config set --local path vendor/bundle
 	bundle install
@@ -28,8 +30,8 @@ live-test:
 	swift test --filter PutioSDKLiveTests
 
 secrets-setup:
-	OP_ACCOUNT=putdotio.1password.com op whoami >/dev/null
-	OP_ACCOUNT=putdotio.1password.com op inject -f -i .env.example -o .env.local
+	@infisical export --domain https://eu.infisical.com/api --projectId b2fcfbd7-19e0-4b87-a797-93d125c432ce --env dev --path /sdk-swift --format dotenv --output-file $(SECRETS_OUTPUT)
+	@chmod 600 $(SECRETS_OUTPUT)
 
 secrets-clean:
 	rm -f .env.local .env.local.* .env.local.swp

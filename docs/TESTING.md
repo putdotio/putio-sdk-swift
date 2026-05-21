@@ -33,10 +33,10 @@ Supported public runtime variables:
 - `PUTIO_TOKEN`
 - `PUTIO_CLIENT_ID`
 - `PUTIO_BASE_URL`
-- `PUTIO_1PASSWORD_RUNTIME_ITEM_ID`
-- `PUTIO_1PASSWORD_RUNTIME_VAULT`
 
-The live harness prefers direct runtime variables first. Maintainers may also hydrate shared live credentials from a 1Password runtime item when `OP_SERVICE_ACCOUNT_TOKEN`, `PUTIO_1PASSWORD_RUNTIME_ITEM_ID`, and `PUTIO_1PASSWORD_RUNTIME_VAULT` are set. Keep concrete item names and secret locations out of public docs.
+Run `make secrets-setup` to render shared live credentials from the Infisical
+`/sdk-swift` path into `.env.local`. The live harness auto-loads `.env.local`
+and `.env`; already-exported environment variables keep highest priority.
 
 ## Live Scope
 
