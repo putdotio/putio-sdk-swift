@@ -25,6 +25,7 @@
 
 - Keep the public package surface open-source-safe
 - Prefer the `make verify` entrypoint instead of ad hoc validation commands
+- Live tests expect maintainer-supplied `PUTIO_SDK_SWIFT_INFISICAL_*`; `make secrets-setup` writes ignored `.env.local`, and `make secrets-clean` removes it.
 - The GitHub repository is `putio-sdk-swift`
 - The Swift Package surface is `PutioSDK`
 - The CocoaPods package is `PutioSDK`
