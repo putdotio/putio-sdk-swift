@@ -38,7 +38,7 @@ jobs:
           bundler-cache: true
 
       - name: Restore SwiftPM build cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
           key: ${{ runner.os }}-swiftpm-${{ github.workflow }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
@@ -46,7 +46,7 @@ jobs:
             ${{ runner.os }}-swiftpm-${{ github.workflow }}-
 
       - name: Restore CocoaPods cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             Example/Pods
@@ -105,7 +105,7 @@ jobs:
           bundler-cache: true
 
       - name: Restore SwiftPM build cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
           key: ${{ runner.os }}-swiftpm-${{ github.workflow }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
@@ -113,7 +113,7 @@ jobs:
             ${{ runner.os }}-swiftpm-${{ github.workflow }}-
 
       - name: Restore CocoaPods cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/Library/Caches/CocoaPods
           key: ${{ runner.os }}-cocoapods-${{ github.workflow }}-${{ hashFiles('Example/Podfile.lock', 'PutioSDK.podspec', 'podspec_helper.rb') }}
