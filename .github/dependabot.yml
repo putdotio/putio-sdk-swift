@@ -3,8 +3,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     groups:
       actions-patch-minor:
         update-types: ["patch", "minor"]
@@ -15,8 +14,7 @@ updates:
   - package-ecosystem: bundler
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     groups:
       bundler-patch-minor:
         update-types: ["patch", "minor"]
@@ -27,8 +25,7 @@ updates:
   - package-ecosystem: swift
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     groups:
       swift-patch-minor:
         update-types: ["patch", "minor"]
