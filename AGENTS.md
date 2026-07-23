@@ -21,6 +21,12 @@
 - `make example-install`
 - `make print-simulator-destination`
 
+## Worktrees
+
+`.worktreeinclude` carries `.env` and Bundler config into Codex and Claude
+worktrees. Run `make bootstrap`; use `make secrets-setup` if live-test env is
+missing or stale.
+
 ## Repo-Specific Guidance
 
 - Keep the public package surface open-source-safe

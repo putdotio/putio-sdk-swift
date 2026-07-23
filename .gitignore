@@ -41,3 +41,4 @@ Carthage/Build
 # `pod install` in .travis.yml
 #
 Example/Pods
+.claude/worktrees/
