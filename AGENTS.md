@@ -24,14 +24,14 @@
 ## Worktrees
 
 `.worktreeinclude` carries `.env` and Bundler config into Codex and Claude
-worktrees. Run `make bootstrap`; use `make secrets-setup` if live-test env is
-missing or stale.
+worktrees. Run `make bootstrap`; use `make secrets-setup` with
+`PUTIO_SDK_SWIFT_SOPS_FILE` if live-test env is missing or stale.
 
 ## Repo-Specific Guidance
 
 - Keep the public package surface open-source-safe
 - Prefer the `make verify` entrypoint instead of ad hoc validation commands
-- Live tests expect maintainer-supplied `PUTIO_SDK_SWIFT_INFISICAL_*`; `make secrets-setup` writes ignored `.env.local`, and `make secrets-clean` removes it.
+- Live tests accept maintainer-supplied `PUTIO_SDK_SWIFT_SOPS_FILE`; `make secrets-setup` validates and writes ignored `.env.local`, and `make secrets-clean` removes it.
 - The GitHub repository is `putio-sdk-swift`
 - The Swift Package surface is `PutioSDK`
 - The CocoaPods package is `PutioSDK`

@@ -23,6 +23,7 @@ final class PutioSDKLiveTests: XCTestCase {
 
     func testFilesAndTrashDisposableFlow() async throws {
         let sdk = try LiveSupport.newAuthedClient()
+        let trashEnabled = try await sdk.getAccountSettings().trashEnabled
         let folderName = LiveSupport.uniqueName(prefix: "putio-swift-live")
 
         let created = try await sdk.createFolder(name: folderName, parentID: 0)
@@ -34,6 +35,8 @@ final class PutioSDKLiveTests: XCTestCase {
             XCTAssertTrue(listing.children.contains(where: { $0.id == createdID }))
 
             _ = try await sdk.deleteFiles(fileIDs: [createdID])
+
+            try XCTSkipIf(!trashEnabled, "Live test account has trash disabled")
 
             let trash = try await sdk.listTrash()
             XCTAssertTrue(trash.files.contains(where: { $0.id == createdID }))

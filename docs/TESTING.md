@@ -34,9 +34,12 @@ Supported public runtime variables:
 - `PUTIO_CLIENT_ID`
 - `PUTIO_BASE_URL`
 
-Run `make secrets-setup` to render shared live credentials from the Infisical
-`/sdk-swift` path into `.env.local`. The live harness auto-loads `.env.local`
-and `.env`; already-exported environment variables keep highest priority.
+Run `make secrets-setup` with `PUTIO_SDK_SWIFT_SOPS_FILE` pointing to the
+maintainer-supplied SOPS ciphertext. The command requires SOPS 3.10 or newer,
+rejects plaintext or malformed payloads, and writes owner-only `.env.local`.
+The live harness auto-loads `.env.local` and `.env`; already-exported
+environment variables keep highest priority. Run `make secrets-clean` before
+removing the worktree.
 
 ## Live Scope
 
@@ -46,6 +49,10 @@ Current live targets cover:
 - disposable folder create, delete, trash restore, and cleanup flows
 - transfer list/count/info decode against the real API
 - playback-adjacent subtitle decode and reversible start-from roundtrips for owned video fixtures
+
+The disposable flow still proves create, list, and delete when the live account
+has trash disabled; restore coverage is reported as skipped instead of changing
+the shared account setting.
 
 ## Safety Rules
 
