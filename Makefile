@@ -1,14 +1,13 @@
-.PHONY: bootstrap verify verify-spm coverage-check live-test example-install print-simulator-destination secrets-setup secrets-clean clean
+.PHONY: bootstrap verify verify-spm coverage-check live-test test-secrets example-install print-simulator-destination secrets-setup secrets-clean clean
 
 SECRETS_OUTPUT ?= .env.local
-PUTIO_INFISICAL_DOMAIN ?= https://eu.infisical.com/api
-PUTIO_SDK_SWIFT_INFISICAL_ENV ?= dev
 
 bootstrap:
 	bundle config set --local path vendor/bundle
 	bundle install
 
 verify:
+	./scripts/secrets-setup.test.sh
 	swift test --enable-code-coverage --filter PutioSDKTests
 	./scripts/check-spm-coverage.sh 90
 	swift build
@@ -31,15 +30,11 @@ coverage-check:
 live-test:
 	swift test --filter PutioSDKLiveTests
 
+test-secrets:
+	./scripts/secrets-setup.test.sh
+
 secrets-setup:
-	@set -eu; \
-	: "$${PUTIO_SDK_SWIFT_INFISICAL_PROJECT_ID:?Set PUTIO_SDK_SWIFT_INFISICAL_PROJECT_ID for this repo}"; \
-	: "$${PUTIO_SDK_SWIFT_INFISICAL_PATH:?Set PUTIO_SDK_SWIFT_INFISICAL_PATH for this repo}"; \
-	umask 077; \
-	tmp="$$(mktemp)"; \
-	trap 'rm -f "$$tmp"' EXIT; \
-	infisical export --silent --domain "$(PUTIO_INFISICAL_DOMAIN)" --projectId "$$PUTIO_SDK_SWIFT_INFISICAL_PROJECT_ID" --env "$(PUTIO_SDK_SWIFT_INFISICAL_ENV)" --path "$$PUTIO_SDK_SWIFT_INFISICAL_PATH" --format dotenv --output-file "$$tmp"; \
-	install -m 600 "$$tmp" "$(SECRETS_OUTPUT)"
+	./scripts/secrets-setup.sh
 
 secrets-clean:
 	rm -f .env.local .env.local.* .env.local.swp

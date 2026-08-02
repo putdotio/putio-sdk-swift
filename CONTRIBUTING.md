@@ -42,6 +42,18 @@ make live-test
 
 The live suite prefers direct runtime env vars first and can optionally hydrate credentials from repo-local operator configuration. See [Testing](./docs/TESTING.md) for the supported public variables and safety rules.
 
+Maintainers with an authorized age identity can materialize the supplied SOPS
+ciphertext into an ignored owner-only env file:
+
+```bash
+PUTIO_SDK_SWIFT_SOPS_FILE=/path/to/swift.sops.env make secrets-setup
+make live-test
+make secrets-clean
+```
+
+`secrets-setup` requires SOPS 3.10 or newer. Keep ciphertext coordinates and
+private age identities outside this public repository.
+
 To see the concrete iPhone simulator destination Xcode is advertising to the repo on your machine, run:
 
 ```bash
