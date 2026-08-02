@@ -73,8 +73,8 @@ do {
         let quoteWrapped = value.count >= 2
             && ((value.hasPrefix("\"") && value.hasSuffix("\""))
                 || (value.hasPrefix("'") && value.hasSuffix("'")))
-        let hasControlCharacter = value.unicodeScalars.contains { scalar in
-            scalar.value == 0 || scalar.value == 10 || scalar.value == 13
+        let hasControlCharacter = value.unicodeScalars.contains {
+            CharacterSet.controlCharacters.contains($0)
         }
 
         guard !quoteWrapped, !hasControlCharacter else {

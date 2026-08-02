@@ -123,6 +123,10 @@ write_payload '{"PUTIO_CLIENT_ID":"123","PUTIO_TOKEN_FIRST_PARTY":"before\u0000a
 expect_failure run_setup
 [ ! -e "$output" ]
 
+write_payload '{"PUTIO_CLIENT_ID":"123","PUTIO_TOKEN_FIRST_PARTY":"before\tafter","PUTIO_TOKEN_THIRD_PARTY":"third"}'
+expect_failure run_setup
+[ ! -e "$output" ]
+
 write_valid_payload
 expect_failure env \
   PATH="$tmp_dir/bin:$PATH" \
@@ -140,6 +144,13 @@ expect_failure env \
   SECRETS_OUTPUT=README.md \
   bash ./scripts/secrets-setup.sh
 
+expect_failure env \
+  PATH="$tmp_dir/bin:$PATH" \
+  FAKE_SOPS_PAYLOAD="$payload" \
+  PUTIO_SDK_SWIFT_SOPS_FILE="$ciphertext" \
+  SECRETS_OUTPUT= \
+  bash ./scripts/secrets-setup.sh
+
 symlinked_ciphertext="$tmp_dir/symlinked.sops.env"
 ln -s "$ciphertext" "$symlinked_ciphertext"
 expect_failure env \
@@ -151,5 +162,17 @@ expect_failure env \
 
 ln -s "$tmp_dir/redirected.env" "$output"
 expect_failure run_setup
+rm -f "$output"
+
+symlinked_parent=".env.local.sops-parent.$$"
+mkdir -p "$tmp_dir/outside"
+ln -s "$tmp_dir/outside" "$symlinked_parent"
+expect_failure env \
+  PATH="$tmp_dir/bin:$PATH" \
+  FAKE_SOPS_PAYLOAD="$payload" \
+  PUTIO_SDK_SWIFT_SOPS_FILE="$ciphertext" \
+  SECRETS_OUTPUT="$symlinked_parent/rendered.env" \
+  bash ./scripts/secrets-setup.sh
+rm -f "$symlinked_parent"
 
 printf 'ok SOPS setup renders validated ignored output and fails closed\n'
