@@ -13,6 +13,7 @@ cd "$repo_root"
 
 ciphertext="${PUTIO_SDK_SWIFT_SOPS_FILE:?Set PUTIO_SDK_SWIFT_SOPS_FILE to the SDK ciphertext file}"
 output=".env.local"
+[ -z "${SECRETS_OUTPUT+x}" ] || fail "SECRETS_OUTPUT is no longer supported; setup writes .env.local"
 
 command -v sops >/dev/null 2>&1 || fail "sops is required"
 command -v swift >/dev/null 2>&1 || fail "swift is required"
