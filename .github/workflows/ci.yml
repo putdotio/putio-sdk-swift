@@ -95,9 +95,12 @@ jobs:
           APP_SLUG: ${{ steps.release-bot.outputs.app-slug }}
         run: |
           set -euo pipefail
-          user_id="$(gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)"
-          if [[ ! "$user_id" =~ ^[0-9]+$ ]]; then
+          if ! user_id="$(gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)"; then
             echo "failed to resolve numeric bot user id for ${APP_SLUG}[bot]" >&2
+            exit 1
+          fi
+          if [[ ! "$user_id" =~ ^[0-9]+$ ]]; then
+            echo "failed to resolve numeric bot user id for ${APP_SLUG}[bot] (got: ${user_id})" >&2
             exit 1
           fi
           echo "user_id=${user_id}" >> "$GITHUB_OUTPUT"
