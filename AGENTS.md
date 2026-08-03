@@ -38,7 +38,7 @@ worktrees. Run `make bootstrap`; use `make secrets-setup` with
 - The Swift Package module, CocoaPods module, and public SDK types are all `PutioSDK`
 - CI and release automation run from `main`
 - The release workflow uses semantic-release after `make verify` passes on `main`
-- GitHub release writes use `putio-release-bot`; CocoaPods publishing additionally needs `COCOAPODS_TRUNK_TOKEN` in the protected `release` Environment
+- GitHub release writes use `putio-releaser`; CocoaPods publishing additionally needs `COCOAPODS_TRUNK_TOKEN` in the protected `release` Environment
 - The `release` Environment is a publish-secret boundary, so the release job sets `deployment: false`
 - Release jobs cache CocoaPods downloads only and regenerate generated `Example/Pods`
 - Verify example workspace installation when auth-flow or package-install surface changes

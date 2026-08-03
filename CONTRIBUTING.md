@@ -76,7 +76,7 @@ make print-simulator-destination
 - Keep tokens, private API credentials, and release-only secrets out of commits
 - The release workflow uses semantic-release on `main`
 - Conventional commits drive automated version selection through semantic-release
-- GitHub release writes use `putio-release-bot` through `PUTIO_RELEASE_BOT_CLIENT_ID` and `PUTIO_RELEASE_BOT_PRIVATE_KEY` in the protected `release` Environment
+- GitHub release writes use `putio-releaser` through `PUTIO_RELEASE_BOT_CLIENT_ID` and `PUTIO_RELEASE_BOT_PRIVATE_KEY` in the protected `release` Environment
 - CocoaPods publishing additionally needs `COCOAPODS_TRUNK_TOKEN` in the protected `release` Environment
 - The `release` Environment is a publish-secret boundary, so the release job sets `deployment: false`
 - Release jobs cache CocoaPods download artifacts only and regenerate generated `Example/Pods`
