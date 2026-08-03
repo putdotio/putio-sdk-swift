@@ -1,13 +1,10 @@
-.PHONY: bootstrap verify verify-spm coverage-check live-test test-secrets example-install print-simulator-destination secrets-setup secrets-clean clean
-
-SECRETS_OUTPUT ?= .env.local
+.PHONY: bootstrap verify verify-spm coverage-check live-test example-install print-simulator-destination secrets-setup secrets-clean clean
 
 bootstrap:
 	bundle config set --local path vendor/bundle
 	bundle install
 
 verify:
-	./scripts/secrets-setup.test.sh
 	swift test --enable-code-coverage --filter PutioSDKTests
 	./scripts/check-spm-coverage.sh 90
 	swift build
@@ -29,9 +26,6 @@ coverage-check:
 
 live-test:
 	swift test --filter PutioSDKLiveTests
-
-test-secrets:
-	./scripts/secrets-setup.test.sh
 
 secrets-setup:
 	./scripts/secrets-setup.sh
