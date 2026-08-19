@@ -17,7 +17,7 @@ def configure_putio_sdk_spec(spec, name:, module_name: nil)
   spec.author           = { 'put.io' => 'devs@put.io' }
 
   spec.homepage         = 'https://github.com/putdotio/putio-sdk-swift'
-  spec.source           = { :git => 'https://github.com/putdotio/putio-sdk-swift.git', :tag => spec.version.to_s }
+  spec.source           = { :git => 'https://github.com/putdotio/putio-sdk-swift.git', :tag => "v#{spec.version}" }
   spec.social_media_url = 'https://twitter.com/putdotio'
 
   spec.ios.deployment_target = '26.0'
