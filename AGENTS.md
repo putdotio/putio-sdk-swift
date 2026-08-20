@@ -43,6 +43,7 @@ worktrees. Run `make bootstrap`; use `make secrets-setup` with
 - Release jobs cache CocoaPods downloads only and regenerate generated `Example/Pods`
 - Verify example workspace installation when auth-flow or package-install surface changes
 - Repo verification should build the Swift package and the `PutioSDK` CocoaPods scheme from the example workspace
+- `make verify` starts with `swift format lint --strict` using the Xcode toolchain's stock rules; run `swift format --in-place --recursive --parallel` on the same paths to fix violations
 - `make verify` prefers an Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet
 - `make print-simulator-destination` shows the concrete iPhone simulator destination the repo would use when Xcode can advertise one
 - `pod lib lint` remains a manual publish-time check until destination resolution is consistent across local and CI environments
