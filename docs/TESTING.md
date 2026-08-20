@@ -7,12 +7,13 @@ make verify
 make live-test
 ```
 
-`make verify` is the deterministic repo gate. It runs the Swift package tests with coverage enabled, enforces a `90%` source line coverage floor across `PutioSDK/Classes`, then builds the package and the example-backed CocoaPods workspace.
+`make verify` is the deterministic repo gate. It lints formatting with the Xcode toolchain's `swift format` (stock rules), runs the Swift package tests with coverage enabled, enforces a `90%` source line coverage floor across `PutioSDK/Classes`, then builds the package and the example-backed CocoaPods workspace.
 
 `make live-test` is opt-in. It runs real API checks against a configured put.io test account and stays separate from the default verify path.
 
 ## Verification Shape
 
+- `make verify` first runs `swift format lint --strict` with stock rules over the package, tests, example app, and scripts
 - `make verify` runs package-level SwiftPM tests
 - `make verify` fails if source line coverage for `PutioSDK/Classes` drops below `90%`
 - `make verify` exercises the async `URLSession` transport and decoded model slice through `PutioSDKTests`

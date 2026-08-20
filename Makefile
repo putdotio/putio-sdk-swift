@@ -5,6 +5,7 @@ bootstrap:
 	bundle install
 
 verify:
+	swift format lint --strict --recursive --parallel Package.swift PutioSDK Tests Example/PutioSDK Example/Tests scripts
 	swift test --enable-code-coverage --filter PutioSDKTests
 	./scripts/check-spm-coverage.sh 90
 	swift build
