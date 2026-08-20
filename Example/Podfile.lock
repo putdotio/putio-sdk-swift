@@ -1,5 +1,5 @@
 PODS:
-  - PutioSDK (3.2.1)
+  - PutioSDK (3.2.2)
 
 DEPENDENCIES:
   - PutioSDK (from `../`)
@@ -9,7 +9,7 @@ EXTERNAL SOURCES:
     :path: "../"
 
 SPEC CHECKSUMS:
-  PutioSDK: 2768f6107a2917a83ca5f5d402403d4204b5bf22
+  PutioSDK: 12a2d61fa881d9c8a41bf35389a2386db2748c6f
 
 PODFILE CHECKSUM: e929897f16b1021dbb0f00ef39efb79f3674073a
 
