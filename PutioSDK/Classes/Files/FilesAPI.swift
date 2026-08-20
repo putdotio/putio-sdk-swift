@@ -96,7 +96,7 @@ private struct PutioFileEnvelope: Decodable {
   let file: PutioFile
 }
 
-public struct PutioFilesMoveError: Codable {
+public struct PutioFilesMoveError: Codable, Sendable {
   public let errorType: String
   public let id: Int
   public let name: String?
@@ -110,7 +110,7 @@ public struct PutioFilesMoveError: Codable {
   }
 }
 
-public struct PutioFilesMoveResponse: Codable {
+public struct PutioFilesMoveResponse: Codable, Sendable {
   public let status: String
   public let errors: [PutioFilesMoveError]
 }

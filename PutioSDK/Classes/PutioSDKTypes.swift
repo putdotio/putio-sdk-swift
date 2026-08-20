@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PutioSDKConfig {
+public struct PutioSDKConfig: Sendable {
   public let baseURL: String
   public var token: String
   public var clientID: String
@@ -39,7 +39,7 @@ public struct PutioSDKConfig {
   }
 }
 
-enum PutioHTTPMethod: String {
+enum PutioHTTPMethod: String, Sendable {
   case get = "GET"
   case post = "POST"
   case put = "PUT"
@@ -160,7 +160,7 @@ extension Dictionary where Key == String, Value == String {
   }
 }
 
-public struct PutioSDKRequestConfig {
+public struct PutioSDKRequestConfig: Sendable {
   private let baseURL: String
   private let path: String
   let method: PutioHTTPMethod
@@ -313,14 +313,14 @@ private func redactSensitiveText(_ text: String) -> String {
   }
 }
 
-public enum PutioSDKErrorType {
+public enum PutioSDKErrorType: Sendable {
   case httpError(statusCode: Int, errorType: String?)
   case networkError
   case decodingError
   case unknownError
 }
 
-public struct PutioSDKErrorRequestInformation {
+public struct PutioSDKErrorRequestInformation: Sendable {
   let config: PutioSDKRequestConfig
 }
 
@@ -343,7 +343,7 @@ internal struct PutioAPIErrorEnvelope: Decodable {
 }
 
 public struct PutioSDKError: Error, LocalizedError, CustomStringConvertible,
-  CustomDebugStringConvertible
+  CustomDebugStringConvertible, Sendable
 {
   public let request: PutioSDKErrorRequestInformation
   public let type: PutioSDKErrorType
@@ -539,7 +539,7 @@ public struct PutioSDKError: Error, LocalizedError, CustomStringConvertible,
   }
 }
 
-public struct PutioOKResponse: Codable {
+public struct PutioOKResponse: Codable, Sendable {
   public let status: String
   public let cursor: String?
   public let skipped: Int?

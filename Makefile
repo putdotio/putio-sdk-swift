@@ -1,4 +1,4 @@
-.PHONY: bootstrap verify verify-spm coverage-check live-test example-install print-simulator-destination secrets-setup secrets-clean clean
+.PHONY: bootstrap verify verify-concurrency verify-spm coverage-check live-test example-install print-simulator-destination secrets-setup secrets-clean clean
 
 bootstrap:
 	bundle config set --local path vendor/bundle
@@ -8,6 +8,7 @@ verify:
 	swift format lint --strict --recursive --parallel Package.swift PutioSDK Tests Example/PutioSDK Example/Tests scripts
 	swift test --enable-code-coverage --filter PutioSDKTests
 	./scripts/check-spm-coverage.sh 90
+	swift test --filter PutioSDKStrictConcurrencyTests
 	swift build
 	bundle exec pod install --project-directory=Example
 	@destination="$$(./scripts/xcode-iphone-simulator-destination.sh --workspace Example/PutioSDK.xcworkspace --scheme PutioSDK 2>/dev/null || true)"; \
@@ -18,6 +19,9 @@ verify:
 		echo "No Xcode-advertised iPhone simulator destination on iOS 26.0 or newer. Falling back to the installed iphonesimulator SDK."; \
 		xcodebuild -workspace Example/PutioSDK.xcworkspace -scheme PutioSDK -sdk iphonesimulator -configuration Debug build CODE_SIGNING_ALLOWED=NO; \
 	fi
+
+verify-concurrency:
+	swift test --filter PutioSDKStrictConcurrencyTests
 
 verify-spm:
 	swift build

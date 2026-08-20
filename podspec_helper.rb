@@ -9,6 +9,7 @@ def configure_putio_sdk_spec(spec, name:, module_name: nil)
   spec.module_name      = module_name if module_name
   spec.version          = putio_sdk_version
   spec.swift_version    = '5.0'
+  spec.pod_target_xcconfig = { 'SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT' => 'YES' }
 
   spec.summary          = 'Swift SDK for the put.io API.'
   spec.description      = 'Swift SDK for the [put.io API](https://api.put.io).'

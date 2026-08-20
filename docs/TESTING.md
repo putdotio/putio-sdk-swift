@@ -4,6 +4,7 @@
 
 ```bash
 make verify
+make verify-concurrency
 make live-test
 ```
 
@@ -16,10 +17,15 @@ make live-test
 - `make verify` first runs `swift format lint --strict` with stock rules over the package, tests, example app, and scripts
 - `make verify` runs package-level SwiftPM tests
 - `make verify` fails if source line coverage for `PutioSDK/Classes` drops below `90%`
+- `make verify` compiles and runs the Swift 6 strict-concurrency consumer proof
 - `make verify` exercises the async `URLSession` transport and decoded model slice through `PutioSDKTests`
 - `make verify` then builds the Swift package and the example-backed `PutioSDK` CocoaPods scheme
 - `make live-test` runs live SwiftPM tests filtered to `PutioSDKLiveTests`
 - GitHub Actions currently runs only `make verify`
+
+`make verify-concurrency` is the focused form of the consumer proof. Its test
+target uses Swift 6 language mode even though the library preserves its Swift 5
+language mode for source compatibility.
 
 ## Live Environment
 

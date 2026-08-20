@@ -39,7 +39,7 @@ open class PutioListTrashResponse: Decodable {
   }
 }
 
-public struct PutioTrashListQuery {
+public struct PutioTrashListQuery: Sendable {
   public let perPage: Int?
 
   public init(perPage: Int? = 50) {

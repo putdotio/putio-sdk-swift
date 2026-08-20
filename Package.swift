@@ -20,7 +20,10 @@ let package = Package(
     .target(
       name: "PutioSDK",
       dependencies: [],
-      path: "PutioSDK/Classes"
+      path: "PutioSDK/Classes",
+      swiftSettings: [
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault")
+      ]
     ),
     .testTarget(
       name: "PutioSDKTests",
@@ -31,6 +34,14 @@ let package = Package(
       name: "PutioSDKLiveTests",
       dependencies: ["PutioSDK"],
       path: "Tests/PutioSDKLiveTests"
+    ),
+    .testTarget(
+      name: "PutioSDKStrictConcurrencyTests",
+      dependencies: ["PutioSDK"],
+      path: "Tests/PutioSDKStrictConcurrencyTests",
+      swiftSettings: [
+        .swiftLanguageMode(.v6)
+      ]
     ),
   ],
   swiftLanguageModes: [

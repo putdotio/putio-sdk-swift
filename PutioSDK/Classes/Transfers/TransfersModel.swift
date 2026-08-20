@@ -115,12 +115,12 @@ public struct PutioTransferStatus: RawRepresentable, Equatable, Sendable {
   ]
 }
 
-public struct PutioTransferLink: Decodable {
+public struct PutioTransferLink: Decodable, Sendable {
   public let label: String
   public let url: String?
 }
 
-public struct PutioTransfer: Decodable {
+public struct PutioTransfer: Decodable, Sendable {
   public let id: Int
   public let name: String
   public let source: String
@@ -215,7 +215,7 @@ public struct PutioTransfer: Decodable {
   }
 }
 
-public struct PutioTransfersListQuery {
+public struct PutioTransfersListQuery: Sendable {
   public let perPage: Int?
 
   public init(perPage: Int? = nil) {
@@ -231,13 +231,13 @@ public struct PutioTransfersListQuery {
   }
 }
 
-public struct PutioTransfersListResponse: Decodable {
+public struct PutioTransfersListResponse: Decodable, Sendable {
   public let cursor: String?
   public let total: Int?
   public let transfers: [PutioTransfer]
 }
 
-public struct PutioTransferAddInput {
+public struct PutioTransferAddInput: Sendable {
   public let url: String
   public let saveParentID: Int?
   public let callbackURL: String?
@@ -260,7 +260,7 @@ public struct PutioTransferAddInput {
   }
 }
 
-public struct PutioTransferInfoItem: Decodable {
+public struct PutioTransferInfoItem: Decodable, Sendable {
   public let url: String
   public let name: String
   public let typeName: String
@@ -280,7 +280,7 @@ public struct PutioTransferInfoItem: Decodable {
   }
 }
 
-public struct PutioTransferInfoResponse: Decodable {
+public struct PutioTransferInfoResponse: Decodable, Sendable {
   public let diskAvailable: Double
   public let items: [PutioTransferInfoItem]
 
@@ -290,7 +290,7 @@ public struct PutioTransferInfoResponse: Decodable {
   }
 }
 
-public struct PutioTransfersAddManyError: Decodable {
+public struct PutioTransfersAddManyError: Decodable, Sendable {
   public let errorType: String
   public let statusCode: Int
   public let url: String
@@ -302,12 +302,12 @@ public struct PutioTransfersAddManyError: Decodable {
   }
 }
 
-public struct PutioTransfersAddManyResponse: Decodable {
+public struct PutioTransfersAddManyResponse: Decodable, Sendable {
   public let errors: [PutioTransfersAddManyError]
   public let transfers: [PutioTransfer]
 }
 
-public struct PutioTransfersCleanResponse: Decodable {
+public struct PutioTransfersCleanResponse: Decodable, Sendable {
   public let deletedIDs: [Int]
 
   enum CodingKeys: String, CodingKey {
