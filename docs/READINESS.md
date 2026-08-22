@@ -7,7 +7,7 @@ This document tracks how ready `putio-sdk-swift` is for autonomous agent work an
 - deterministic package-level unit tests now exist under `Tests/PutioSDKTests`
 - an opt-in live verification layer exists under `Tests/PutioSDKLiveTests`
 - the shared transport now has a native async `URLSession` path with `Decodable` boundary parsing for the modernized domains
-- a Swift 6 consumer target now verifies actor-owned SDK use and the audited `Sendable` value surface under strict concurrency
+- a Swift 6 consumer target now verifies actor-owned SDK use and the audited `Sendable` value surface under strict concurrency; see [Architecture — Swift Concurrency Posture](./ARCHITECTURE.md#swift-concurrency-posture) for the full contract
 - typed failures now conform to `LocalizedError` and carry recovery guidance, retryability, and classification helpers
 - `make verify` is the canonical deterministic guardrail and enforces a `90%` source line coverage floor for `PutioSDK/Classes`
 - `make live-test` is the opt-in real API verification lane
@@ -20,7 +20,7 @@ This document tracks how ready `putio-sdk-swift` is for autonomous agent work an
 | Unit verification | `good` | request config, async transport, localized errors, and the modernized account/auth/history/files/media/grants/routes/subtitles/transfers/trash domains now have deterministic package coverage with a `90%` source line floor enforced by `make verify` |
 | Live verification | `medium` | account, disposable file/trash, transfer read paths, and playback-adjacent file helpers are live-covered; more namespaces still need safe real-API targets |
 | Native SDK baseline | `good` | auth/OAuth, account/settings/security/2FA, files, search, transfers, history/events, trash, subtitles, and playback-adjacent helpers have typed async surfaces |
-| Strict concurrency | `good` | async APIs inherit caller isolation; the consumer proof covers every SDK domain, actor-owned mutable models, and low-risk `Sendable` value types |
+| Strict concurrency | `good` | see [Architecture — Swift Concurrency Posture](./ARCHITECTURE.md#swift-concurrency-posture) |
 | Release readiness | `good` | `main` stays verify-first, with semantic-release and optional CocoaPods publishing |
 
 ## Highest-Value Next Gaps
