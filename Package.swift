@@ -21,6 +21,8 @@ let package = Package(
       name: "PutioSDK",
       dependencies: [],
       path: "PutioSDK/Classes",
+      // Keep in sync with the CocoaPods `SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT`
+      // setting in podspec_helper.rb so both distribution surfaces share one concurrency posture.
       swiftSettings: [
         .enableUpcomingFeature("NonisolatedNonsendingByDefault")
       ]
