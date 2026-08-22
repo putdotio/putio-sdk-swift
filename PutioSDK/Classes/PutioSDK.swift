@@ -29,6 +29,12 @@ public final class PutioSDK {
     self.config.token = ""
   }
 
+  // Runs off the caller's actor (see docs/ARCHITECTURE.md#swift-concurrency-posture):
+  // `NonisolatedNonsendingByDefault` would otherwise inherit the caller's isolation for
+  // this async body, forcing JSON encode/decode and delegate callbacks onto a `@MainActor`
+  // consumer's main thread. `@concurrent` keeps that work on the global executor, matching
+  // pre-PR behavior, while the public domain methods that call into this stay caller-isolated.
+  @concurrent
   func request<T: Decodable>(
     _ url: String,
     method: PutioHTTPMethod = .get,
@@ -36,7 +42,7 @@ public final class PutioSDK {
     query: PutioRequestParameters = [:],
     body: PutioRequestParameters = [:],
     as type: T.Type
-  ) async throws -> T {
+  ) async throws -> sending T {
     let requestConfig = PutioSDKRequestConfig(
       apiConfig: config,
       url: url,
@@ -58,6 +64,9 @@ public final class PutioSDK {
     }
   }
 
+  // Stays off the caller's actor for the same reason as `request` above: keeps the
+  // network round trip and error-envelope decode/delegate callback on the global executor.
+  @concurrent
   private func execute(requestConfig: PutioSDKRequestConfig) async throws -> Data {
     let requestInformation = PutioSDKErrorRequestInformation(config: requestConfig)
     let urlRequest = try buildURLRequest(from: requestConfig)
