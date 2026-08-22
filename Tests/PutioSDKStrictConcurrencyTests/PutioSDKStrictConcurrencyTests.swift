@@ -11,6 +11,13 @@ final class PutioSDKStrictConcurrencyTests: XCTestCase {
 
   func testLowRiskValueTypesAreSendable() {
     requireSendable(PutioSDKConfig.self)
+    requireSendable(PutioConfig.self)
+    requireSendable(PutioConfigUpdate.self)
+    requireSendable(PutioChromecastPlaybackType.self)
+    requireSendable(PutioFileType.self)
+    requireSendable(PutioTransferType.self)
+    requireSendable(PutioTransferStatus.self)
+    requireSendable(PutioMp4ConversionStatus.self)
     requireSendable(PutioAccountInfoQuery.self)
     requireSendable(PutioAccountSettingsPatch.self)
     requireSendable(PutioTwoFactorSettings.self)
@@ -44,6 +51,14 @@ final class PutioSDKStrictConcurrencyTests: XCTestCase {
     requireSendable(PutioTransfersAddManyResponse.self)
     requireSendable(PutioTransfersCleanResponse.self)
     requireSendable(PutioTrashListQuery.self)
+  }
+
+  // Anchors `auditAsyncConsumerSurface` so dead-code cleanup can't silently drop the
+  // compile-only Swift 6 audit; nothing here executes the closure, it only has to exist.
+  @MainActor
+  func testAuditAsyncConsumerSurfaceStaysReachable() {
+    let audit: (PutioSDK) async throws -> Void = auditAsyncConsumerSurface
+    XCTAssertNotNil(audit)
   }
 }
 
@@ -85,6 +100,7 @@ private func auditAsyncConsumerSurface(_ sdk: PutioSDK) async throws {
     ingredients: ingredients
   )
   _ = try await sdk.sendIFTTTEvent(event: event)
+  // Mutating after the `await` proves `ingredients` is still actor-owned, not sent away.
   ingredients.fileName = "Movie 2"
   _ = try await sdk.getRoutes()
   _ = try await sdk.getSubtitles(fileID: 1)
