@@ -4,7 +4,7 @@ public protocol PutioFileHistoryEvent {
   var fileID: Int { get set }
 }
 
-public struct PutioHistoryEventsQuery {
+public struct PutioHistoryEventsQuery: Sendable {
   public let perPage: Int?
   public let before: Int?
 

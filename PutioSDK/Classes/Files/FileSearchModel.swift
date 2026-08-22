@@ -19,7 +19,7 @@ open class PutioFileSearchResponse: Decodable {
   }
 }
 
-public struct PutioFileSearchQuery {
+public struct PutioFileSearchQuery: Sendable {
   public let keyword: String
   public let perPage: Int?
   public let types: [PutioFileType]
@@ -42,7 +42,7 @@ public struct PutioFileSearchQuery {
   }
 }
 
-public struct PutioFileSearchContinueQuery {
+public struct PutioFileSearchContinueQuery: Sendable {
   public let perPage: Int?
 
   public init(perPage: Int? = nil) {

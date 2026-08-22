@@ -20,7 +20,12 @@ let package = Package(
     .target(
       name: "PutioSDK",
       dependencies: [],
-      path: "PutioSDK/Classes"
+      path: "PutioSDK/Classes",
+      // Keep in sync with the CocoaPods `SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT`
+      // setting in podspec_helper.rb so both distribution surfaces share one concurrency posture.
+      swiftSettings: [
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault")
+      ]
     ),
     .testTarget(
       name: "PutioSDKTests",
@@ -31,6 +36,14 @@ let package = Package(
       name: "PutioSDKLiveTests",
       dependencies: ["PutioSDK"],
       path: "Tests/PutioSDKLiveTests"
+    ),
+    .testTarget(
+      name: "PutioSDKStrictConcurrencyTests",
+      dependencies: ["PutioSDK"],
+      path: "Tests/PutioSDKStrictConcurrencyTests",
+      swiftSettings: [
+        .swiftLanguageMode(.v6)
+      ]
     ),
   ],
   swiftLanguageModes: [

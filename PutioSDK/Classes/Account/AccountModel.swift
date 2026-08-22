@@ -133,7 +133,7 @@ public var PutioClearDataOptionKeys = [
   "friends",
 ]
 
-public struct PutioAccountInfoQuery {
+public struct PutioAccountInfoQuery: Sendable {
   public let downloadToken: Bool
   public let features: Bool
   public let intercom: Bool
@@ -173,7 +173,7 @@ public struct PutioAccountInfoQuery {
   }
 }
 
-public struct PutioAccountSettingsPatch {
+public struct PutioAccountSettingsPatch: Sendable {
   public let historyEnabled: Bool?
   public let trashEnabled: Bool?
   public let hideSubtitles: Bool?
@@ -215,7 +215,7 @@ public struct PutioAccountSettingsPatch {
   }
 }
 
-public struct PutioTwoFactorSettings {
+public struct PutioTwoFactorSettings: Sendable {
   public let code: String
   public let enable: Bool
 
@@ -232,7 +232,7 @@ public struct PutioTwoFactorSettings {
   }
 }
 
-public enum PutioAccountSettingsUpdate {
+public enum PutioAccountSettingsUpdate: Sendable {
   case patch(PutioAccountSettingsPatch)
   case username(String)
   case mail(currentPassword: String, mail: String)
@@ -261,7 +261,7 @@ public enum PutioAccountSettingsUpdate {
   }
 }
 
-public struct PutioAccountClearOptions {
+public struct PutioAccountClearOptions: Sendable {
   public let files: Bool
   public let finishedTransfers: Bool
   public let activeTransfers: Bool

@@ -75,7 +75,7 @@ open class PutioBaseFile: Decodable {
   }
 }
 
-public struct PutioVideoMetadata: Decodable {
+public struct PutioVideoMetadata: Decodable, Sendable {
   public var height: Int
   public var width: Int
   public var codec: String
@@ -210,12 +210,12 @@ open class PutioFile: PutioBaseFile {
   }
 }
 
-public enum PutioNextFileType: String, Decodable {
+public enum PutioNextFileType: String, Decodable, Sendable {
   case video = "VIDEO"
   case audio = "AUDIO"
 }
 
-public struct PutioFilesListQuery {
+public struct PutioFilesListQuery: Sendable {
   public let perPage: Int?
   public let total: Bool
   public let hidden: Bool
@@ -265,7 +265,7 @@ public struct PutioFilesListQuery {
   }
 }
 
-public struct PutioFileDetailsQuery {
+public struct PutioFileDetailsQuery: Sendable {
   public let mp4Size: Bool
   public let startFrom: Bool
   public let streamURL: Bool
@@ -293,7 +293,7 @@ public struct PutioFileDetailsQuery {
   }
 }
 
-public struct PutioFileDeleteOptions {
+public struct PutioFileDeleteOptions: Sendable {
   public let skipNonexistents: Bool
   public let skipOwnerCheck: Bool
 

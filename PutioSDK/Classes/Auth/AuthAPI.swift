@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-public enum PutioOAuthCallbackError: Error, LocalizedError, Equatable {
+public enum PutioOAuthCallbackError: Error, LocalizedError, Equatable, Sendable {
   case invalidCallbackURL
   case invalidState
   case missingAccessToken
@@ -18,7 +18,7 @@ public enum PutioOAuthCallbackError: Error, LocalizedError, Equatable {
   }
 }
 
-public enum PutioOAuthStateError: Error, LocalizedError, Equatable {
+public enum PutioOAuthStateError: Error, LocalizedError, Equatable, Sendable {
   case invalidByteCount
   case generationFailed(OSStatus)
 
