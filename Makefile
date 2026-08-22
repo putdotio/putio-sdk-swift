@@ -7,9 +7,8 @@ bootstrap:
 verify:
 	swift format lint --strict --recursive --parallel Package.swift PutioSDK Tests Example/PutioSDK Example/Tests scripts
 	./scripts/check-sendable-audit.sh
-	swift test --enable-code-coverage --filter PutioSDKTests
+	swift test --enable-code-coverage --filter PutioSDKTests --filter PutioSDKStrictConcurrencyTests
 	./scripts/check-spm-coverage.sh 90
-	swift test --filter PutioSDKStrictConcurrencyTests
 	swift build
 	bundle exec pod install --project-directory=Example
 	@destination="$$(./scripts/xcode-iphone-simulator-destination.sh --workspace Example/PutioSDK.xcworkspace --scheme PutioSDK 2>/dev/null || true)"; \
@@ -21,6 +20,9 @@ verify:
 		xcodebuild -workspace Example/PutioSDK.xcworkspace -scheme PutioSDK -sdk iphonesimulator -configuration Debug build CODE_SIGNING_ALLOWED=NO; \
 	fi
 
+# Focused lane for the strict-concurrency consumer proof only. `verify` above already
+# runs this same filter together with PutioSDKTests in one combined `swift test`
+# invocation, so use this target for a quicker concurrency-only check during iteration.
 verify-concurrency:
 	swift test --filter PutioSDKStrictConcurrencyTests
 
