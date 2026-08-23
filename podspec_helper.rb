@@ -25,5 +25,7 @@ def configure_putio_sdk_spec(spec, name:, module_name: nil)
   spec.social_media_url = 'https://twitter.com/putdotio'
 
   spec.ios.deployment_target = '26.0'
+  spec.tvos.deployment_target = '26.0'
+  spec.watchos.deployment_target = '26.0'
   spec.source_files = 'PutioSDK/Classes/**/*'
 end

@@ -227,6 +227,7 @@ final class PutioSDKErrorTests: XCTestCase {
   }
 
   func testTransportNotifiesDelegateForNetworkAndDecodingFailures() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
     let delegate = DelegateProbe()
 
     MockURLProtocol.requestHandler = { request in

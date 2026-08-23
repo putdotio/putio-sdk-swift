@@ -50,6 +50,7 @@ final class PutioSDKConfigTests: XCTestCase {
   }
 
   func testSaveConfigPostsTypedValue() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
     MockURLProtocol.requestHandler = { request in
       XCTAssertEqual(request.httpMethod, "PUT")
       XCTAssertEqual(request.url?.path, "/v2/config/chromecast_playback_type")

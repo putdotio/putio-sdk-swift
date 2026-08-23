@@ -9,6 +9,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testFilesAndMediaEndpointsDecodeResponsesAndBuildExpectedRequests() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
     MockURLProtocol.requestHandler = { request in
       switch request.url?.path {
       case "/v2/files/list":
