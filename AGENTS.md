@@ -18,6 +18,7 @@
 
 - `make bootstrap`
 - `make verify`
+- `make verify-platforms`
 - `make example-install`
 - `make print-simulator-destination`
 

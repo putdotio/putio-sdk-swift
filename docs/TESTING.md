@@ -4,11 +4,14 @@
 
 ```bash
 make verify
+make verify-platforms
 make verify-concurrency
 make live-test
 ```
 
 `make verify` is the deterministic repo gate. It lints formatting with the Xcode toolchain's `swift format` (stock rules), runs the Swift package tests (including the strict-concurrency consumer proof) with coverage enabled, enforces a `90%` source line coverage floor across `PutioSDK/Classes`, then builds the package and the example-backed CocoaPods workspace.
+
+`make verify-platforms` runs the deterministic suite on tvOS and watchOS simulators through the `PlatformVerify.xcworkspace` wrapper (the tracked CocoaPods `_Pods.xcodeproj` symlink breaks xcodebuild package discovery at the repository root). The URLProtocol-backed transport tests skip on watchOS with a documented reason: watchOS proxies `URLSession` loads out of process and never consults custom `URLProtocol` classes. Pure-logic suites run on every platform.
 
 `make live-test` is opt-in. It runs real API checks against a configured put.io test account and stays separate from the default verify path.
 

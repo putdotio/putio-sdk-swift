@@ -1,4 +1,4 @@
-.PHONY: bootstrap verify verify-concurrency verify-spm coverage-check sendable-audit live-test example-install print-simulator-destination secrets-setup secrets-clean clean
+.PHONY: bootstrap verify verify-concurrency verify-spm verify-platforms coverage-check sendable-audit live-test example-install print-simulator-destination secrets-setup secrets-clean clean
 
 bootstrap:
 	bundle config set --local path vendor/bundle
@@ -28,6 +28,17 @@ verify-concurrency:
 
 verify-spm:
 	swift build
+
+# tvOS and watchOS unit-test runs (each builds the library for its platform
+# first). The PlatformVerify workspace wraps the package because the tracked
+# CocoaPods _Pods.xcodeproj symlink breaks xcodebuild package discovery at the
+# repository root.
+verify-platforms:
+	@set -e; for platform in tvOS watchOS; do \
+		destination="$$(./scripts/platform-simulator-destination.sh $$platform)"; \
+		echo "Testing PutioSDK on $$platform simulator ($$destination)"; \
+		xcodebuild -workspace PlatformVerify.xcworkspace -scheme PutioSDKPlatformTests -destination "$$destination" test CODE_SIGNING_ALLOWED=NO; \
+	done
 
 coverage-check:
 	./scripts/check-spm-coverage.sh 90

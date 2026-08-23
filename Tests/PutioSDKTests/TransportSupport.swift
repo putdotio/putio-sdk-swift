@@ -1,6 +1,17 @@
 import Foundation
+import XCTest
 
 @testable import PutioSDK
+
+// watchOS proxies URLSession loads out of process and never consults custom
+// URLProtocol classes, so URLProtocol-backed transport tests cannot run there.
+// The pure-logic suites (OAuth state and callback validation, decoding, public
+// surface) still run on watchOS.
+func skipUnlessURLProtocolMockingIsSupported() throws {
+  #if os(watchOS)
+    throw XCTSkip("watchOS URLSession does not consult custom URLProtocol classes")
+  #endif
+}
 
 final class MockURLProtocol: URLProtocol {
   static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?

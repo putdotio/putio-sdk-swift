@@ -83,6 +83,7 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   func testAuthAndTwoFactorEndpointsDecodeTypedResponses() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
     var seenPaths: [String] = []
 
     MockURLProtocol.requestHandler = { request in

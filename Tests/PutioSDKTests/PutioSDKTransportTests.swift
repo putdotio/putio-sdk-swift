@@ -129,6 +129,7 @@ final class PutioSDKTransportTests: XCTestCase {
   }
 
   func testSaveAccountSettingsPostsJsonAndDecodesOkResponse() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
     MockURLProtocol.requestHandler = { request in
       XCTAssertEqual(request.httpMethod, "POST")
       XCTAssertEqual(request.url?.path, "/v2/account/settings")
@@ -159,6 +160,7 @@ final class PutioSDKTransportTests: XCTestCase {
   }
 
   func testMoveFilesDecodesStructuredMoveErrors() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
     MockURLProtocol.requestHandler = { request in
       XCTAssertEqual(request.httpMethod, "POST")
       XCTAssertEqual(request.url?.path, "/v2/files/move")
@@ -198,6 +200,7 @@ final class PutioSDKTransportTests: XCTestCase {
   }
 
   func testSendIFTTTEventPostsEventPayload() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
     MockURLProtocol.requestHandler = { request in
       XCTAssertEqual(request.httpMethod, "POST")
       XCTAssertEqual(request.url?.path, "/v2/ifttt-client/event")
