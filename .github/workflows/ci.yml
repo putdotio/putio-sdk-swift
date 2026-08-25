@@ -91,7 +91,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     concurrency:
-      group: verify-${{ github.workflow }}-${{ github.ref }}
+      group: verify-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
@@ -280,9 +280,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bundle config set --local path vendor/bundle
           bundle config set --local frozen true
-          bundle install --jobs 4 --retry 3
+          make bootstrap
 
       - name: Publish missing CocoaPods version
         shell: bash
