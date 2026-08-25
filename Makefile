@@ -1,4 +1,4 @@
-.PHONY: bootstrap verify verify-concurrency verify-spm verify-platforms coverage-check sendable-audit live-test example-install print-simulator-destination secrets-setup secrets-clean clean
+.PHONY: bootstrap verify verify-concurrency verify-spm verify-platforms coverage-check podspec-package-check sendable-audit live-test example-install print-simulator-destination secrets-setup secrets-clean clean
 
 bootstrap:
 	bundle config set --local path vendor/bundle
@@ -6,6 +6,7 @@ bootstrap:
 
 verify:
 	swift format lint --strict --recursive --parallel Package.swift PutioSDK Tests Example/PutioSDK Example/Tests scripts
+	bundle exec ruby scripts/check-podspec-package.rb
 	./scripts/check-sendable-audit.sh
 	swift test --enable-code-coverage --filter PutioSDKTests --filter PutioSDKStrictConcurrencyTests
 	./scripts/check-spm-coverage.sh 90
@@ -42,6 +43,9 @@ verify-platforms:
 
 coverage-check:
 	./scripts/check-spm-coverage.sh 90
+
+podspec-package-check:
+	bundle exec ruby scripts/check-podspec-package.rb
 
 sendable-audit:
 	./scripts/check-sendable-audit.sh
