@@ -80,6 +80,8 @@ make print-simulator-destination
 - CocoaPods publishing additionally needs `COCOAPODS_TRUNK_TOKEN` in the protected `release` Environment
 - The `release` Environment is a publish-secret boundary, so the release job sets `deployment: false`
 - Release jobs cache CocoaPods download artifacts only and regenerate generated `Example/Pods`
+- If semantic-release creates a version commit and tag before publishing fails, fix the cause on `main`, then dispatch `CI` from `main` with that exact `recover_version`
+- Release recovery validates `main`, `VERSION`, and the existing tag before loading release secrets; it idempotently publishes the missing CocoaPods version before creating the missing GitHub Release
 
 ## Pull Requests
 
