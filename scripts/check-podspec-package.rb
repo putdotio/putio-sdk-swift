@@ -32,7 +32,8 @@ Dir.mktmpdir('putio-sdk-pod-package-') do |temporary_directory|
   # CocoaPods evaluates the downloaded podspec while validating iOS, removes its
   # temporary source directory, then evaluates the original podspec for tvOS and
   # watchOS. The downloaded helper must not replace the original helper module.
-  FileUtils.rm_rf(package_root)
+  FileUtils.remove_entry(package_root)
+  abort "Temporary package still exists after removal" if Dir.exist?(package_root)
 
   reloaded_spec = Pod::Specification.from_file(File.join(repository_root, 'PutioSDK.podspec'))
   abort "Reloaded podspec version #{reloaded_spec.version} does not match #{expected_version}" unless reloaded_spec.version.to_s == expected_version

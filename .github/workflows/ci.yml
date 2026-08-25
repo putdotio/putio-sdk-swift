@@ -69,6 +69,16 @@ jobs:
             exit 1
           fi
 
+          tag_commit="$(git rev-parse "refs/tags/${tag}^{commit}")"
+          if ! git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"; then
+            echo "$tag is not an ancestor of recovery main $GITHUB_SHA" >&2
+            exit 1
+          fi
+          if ! git diff --quiet "$tag_commit" "$GITHUB_SHA" -- LICENSE PutioSDK podspec_helper.rb; then
+            echo "CocoaPods source payload changed after $tag; recovery requires a new release" >&2
+            exit 1
+          fi
+
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -268,6 +278,7 @@ jobs:
         run: |
           set -euo pipefail
           bundle config set --local path vendor/bundle
+          bundle config set --local frozen true
           bundle install --jobs 4 --retry 3
 
       - name: Publish missing CocoaPods version
@@ -304,7 +315,7 @@ jobs:
           fi
 
           notes_file="$RUNNER_TEMP/release-notes.md"
-          git show --no-patch --format=%B "$TAG" | tail -n +3 > "$notes_file"
+          git log -1 --format=%b "${TAG}^{commit}" > "$notes_file"
           if [[ ! -s "$notes_file" ]]; then
             echo "$TAG has no release notes in its commit message" >&2
             exit 1
