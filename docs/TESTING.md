@@ -9,7 +9,7 @@ make verify-concurrency
 make live-test
 ```
 
-`make verify` is the deterministic repo gate. It lints formatting with the Xcode toolchain's `swift format` (stock rules), verifies that CocoaPods package pruning keeps the podspec's support files, runs the Swift package tests (including the strict-concurrency consumer proof) with coverage enabled, enforces a `90%` source line coverage floor across `PutioSDK/Classes`, then builds the package and the example-backed CocoaPods workspace.
+`make verify` is the deterministic repo gate. It lints formatting with the Xcode toolchain's `swift format` (stock rules), verifies that CocoaPods package pruning keeps the podspec's support files and that temporary podspec evaluation cannot replace the active helper, runs the Swift package tests (including the strict-concurrency consumer proof) with coverage enabled, enforces a `90%` source line coverage floor across `PutioSDK/Classes`, then builds the package and the example-backed CocoaPods workspace.
 
 `make verify-platforms` runs the deterministic suite on tvOS and watchOS simulators through the `PlatformVerify.xcworkspace` wrapper (the tracked CocoaPods `_Pods.xcodeproj` symlink breaks xcodebuild package discovery at the repository root). The URLProtocol-backed transport tests skip on watchOS with a documented reason: watchOS proxies `URLSession` loads out of process and never consults custom `URLProtocol` classes. Pure-logic suites run on every platform.
 
@@ -22,7 +22,7 @@ for why and for the full strict-concurrency contract.
 ## Verification Shape
 
 - `make verify` first runs `swift format lint --strict` with stock rules over the package, tests, example app, and scripts
-- `make verify` runs `scripts/check-podspec-package.rb` through Bundler to ensure CocoaPods package pruning keeps `VERSION` and `podspec_helper.rb`
+- `make verify` runs `scripts/check-podspec-package.rb` through Bundler to ensure CocoaPods package pruning keeps `VERSION` and `podspec_helper.rb` without leaking a downloaded helper into later platform validation
 - `make verify` runs `./scripts/check-sendable-audit.sh` to keep the strict-concurrency `Sendable` audit list exhaustive
 - `make verify` runs package-level SwiftPM tests, including `PutioSDKTests` and `PutioSDKStrictConcurrencyTests` in one combined `swift test` invocation
 - `make verify` fails if source line coverage for `PutioSDK/Classes` drops below `90%`
