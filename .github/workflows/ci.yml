@@ -74,6 +74,9 @@ jobs:
             echo "$tag is not an ancestor of recovery main $GITHUB_SHA" >&2
             exit 1
           fi
+
+          # Recovery publishes the repaired podspec from main against the
+          # immutable tagged sources. Only delivery metadata may differ.
           if ! git diff --quiet "$tag_commit" "$GITHUB_SHA" -- LICENSE PutioSDK podspec_helper.rb; then
             echo "CocoaPods source payload changed after $tag; recovery requires a new release" >&2
             exit 1

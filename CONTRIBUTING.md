@@ -82,6 +82,7 @@ make print-simulator-destination
 - Release jobs cache CocoaPods download artifacts only and regenerate generated `Example/Pods`
 - If semantic-release creates a version commit and tag before publishing fails, fix the cause on `main`, then dispatch `CI` from `main` with that exact `recover_version`
 - Release recovery validates `main`, `VERSION`, and the existing tag before loading release secrets; it idempotently publishes the missing CocoaPods version before creating the missing GitHub Release
+- Recovery requires `VERSION` to remain unchanged and the tagged CocoaPods source payload (`LICENSE`, `PutioSDK/`, and `podspec_helper.rb`) to match `main`; source changes require a new release instead
 
 ## Pull Requests
 
