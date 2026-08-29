@@ -105,6 +105,26 @@ do {
 }
 ```
 
+## Video Playback
+
+The SDK resolves video metadata and constructs the authenticated HLS URL so apps do not supply or
+assemble access-token query parameters:
+
+```swift
+switch try await sdk.resolveVideoPlaybackSource(fileID: 42) {
+case .ready(let source):
+    play(url: source.url, startingAt: source.startFrom)
+case .conversionRequired:
+    showConversionRequired()
+}
+```
+
+Passing a non-video file throws `PutioVideoPlaybackResolutionError.unsupportedFileType` with a
+localized recovery suggestion.
+
+The returned URL is a bearer credential because it contains the access token needed by the media
+endpoint. Use it only for playback; do not log, persist, or share it.
+
 ## Development
 
 For local development, the repo exposes one verification command:

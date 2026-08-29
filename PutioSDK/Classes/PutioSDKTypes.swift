@@ -167,6 +167,7 @@ public struct PutioSDKRequestConfig: Sendable {
   let headers: PutioHTTPHeaders
   let query: PutioRequestParameters
   let body: PutioRequestParameters?
+  let timeoutInterval: Double
 
   var url: String {
     (try? buildURL().absoluteString) ?? "\(baseURL)\(path)"
@@ -194,6 +195,7 @@ public struct PutioSDKRequestConfig: Sendable {
     self.headers = enhancedHeaders
     self.query = query
     self.body = method.acceptsBody ? body : nil
+    self.timeoutInterval = apiConfig.timeoutInterval
   }
 
   func buildURL() throws -> URL {
@@ -278,7 +280,7 @@ private func redact(_ value: PutioRequestValue) -> PutioRequestValue {
   }
 }
 
-private func sensitiveKey(_ key: String) -> Bool {
+func sensitiveKey(_ key: String) -> Bool {
   let normalized = key.lowercased()
   return normalized == "authorization" || normalized == "password"
     || normalized == "current_password" || normalized == "secret" || normalized == "recovery_codes"

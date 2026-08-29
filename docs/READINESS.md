@@ -18,8 +18,8 @@ This document tracks how ready `putio-sdk-swift` is for autonomous agent work an
 | --- | --- | --- |
 | Package boot | `good` | `make bootstrap` and `make verify` are documented and exercised in CI |
 | Unit verification | `good` | request config, async transport, localized errors, and the modernized account/auth/history/files/media/grants/routes/subtitles/transfers/trash domains now have deterministic package coverage with a `90%` source line floor enforced by `make verify` |
-| Live verification | `medium` | account, disposable file/trash, transfer read paths, and playback-adjacent file helpers are live-covered; more namespaces still need safe real-API targets |
-| Native SDK baseline | `good` | auth/OAuth, account/settings/security/2FA, files, search, transfers, history/events, trash, subtitles, and playback-adjacent helpers have typed async surfaces |
+| Live verification | `medium` | account, disposable file/trash, transfer read paths, and resume helpers have opt-in live probes; direct-HLS resolution also has a probe that reports skipped when no already-playable owned fixture is available |
+| Native SDK baseline | `good` | auth/OAuth, account/settings/security/2FA, files, search, transfers, history/events, trash, subtitles, and playback-adjacent helpers including direct-HLS resolution have typed async surfaces |
 | Strict concurrency | `good` | see [Architecture — Swift Concurrency Posture](./ARCHITECTURE.md#swift-concurrency-posture) |
 | Release readiness | `good` | `main` stays verify-first, with semantic-release and optional CocoaPods publishing |
 

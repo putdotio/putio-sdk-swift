@@ -113,9 +113,77 @@ final class PutioSDKLiveTests: XCTestCase {
     try await restoreStartFrom(sdk: sdk, fileID: candidate.id, original: before)
   }
 
+  func testVideoPlaybackSourceResolvesAgainstRealAPI() async throws {
+    let sdk = try LiveSupport.newAuthedClient()
+    let search = try await sdk.searchFiles(
+      query: PutioFileSearchQuery(keyword: "mp4", perPage: 10)
+    )
+    let candidates = search.files.filter { $0.type == .video && !$0.isShared }
+
+    for candidate in candidates {
+      let resolution = try await sdk.resolveVideoPlaybackSource(fileID: candidate.id)
+      guard case .ready(let source) = resolution else {
+        continue
+      }
+
+      let components = try XCTUnwrap(
+        URLComponents(url: source.url, resolvingAgainstBaseURL: false))
+      let queryItems = components.queryItems ?? []
+      let expectedStartFrom = try await sdk.getStartFrom(fileID: candidate.id)
+
+      XCTAssertTrue(
+        components.path.hasSuffix("/files/\(candidate.id)/hls/media.m3u8")
+      )
+      XCTAssertEqual(
+        queryItems.first(where: { $0.name == "subtitle_key" })?.value,
+        "all"
+      )
+      XCTAssertTrue(
+        queryItems.contains { $0.name == "oauth_token" && $0.value?.isEmpty == false })
+      XCTAssertEqual(source.startFrom, expectedStartFrom)
+      try await assertHLSPlaylistLoads(from: source.url)
+      return
+    }
+
+    throw XCTSkip("No already-playable owned video candidate found for playback resolution")
+  }
+
   private func cleanup(sdk: PutioSDK, fileID: Int) async throws {
     _ = try? await sdk.deleteFiles(fileIDs: [fileID])
     _ = try? await sdk.deleteTrashFiles(fileIDs: [fileID], cursor: nil)
+  }
+
+  private func assertHLSPlaylistLoads(from url: URL) async throws {
+    var request = URLRequest(url: url)
+    request.setValue("bytes=0-4095", forHTTPHeaderField: "Range")
+    request.timeoutInterval = 15
+
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.finishTasksAndInvalidate() }
+
+    let data: Data
+    let response: URLResponse
+    do {
+      (data, response) = try await session.data(for: request)
+    } catch let error as URLError {
+      XCTFail("HLS playlist request failed with URL error \(error.code.rawValue)")
+      return
+    } catch {
+      XCTFail("HLS playlist request failed with \(type(of: error))")
+      return
+    }
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      return XCTFail("HLS playlist request did not return an HTTP response")
+    }
+    XCTAssertTrue(
+      [200, 206].contains(httpResponse.statusCode),
+      "HLS playlist returned HTTP \(httpResponse.statusCode)"
+    )
+    XCTAssertTrue(
+      String(decoding: data.prefix(4096), as: UTF8.self).contains("#EXTM3U"),
+      "HLS response did not contain a playlist header"
+    )
   }
 
   private func findOwnedVideoCandidate(sdk: PutioSDK) async throws -> PutioFile? {

@@ -31,6 +31,7 @@ graph LR
 - prefer native Swift concurrency over callback-first transport code
 - parse external data at the boundary with `Decodable`
 - encode request query and body values through SDK-owned typed primitives instead of untyped parameter bags
+- keep authenticated playback URL construction inside the SDK so consumers never supply or assemble token parameters, and treat returned playback URLs as bearer-sensitive values
 - keep the CocoaPods and Swift Package surfaces aligned
 - preserve forward compatibility where possible instead of crashing on unknown backend strings
 - keep live-tested domains on the modern async path first, then expand outward
@@ -143,6 +144,7 @@ language mode 5.
   - `resetStartFrom`
   - `getMp4ConversionStatus`
   - `startMp4Conversion`
+  - `resolveVideoPlaybackSource` for authenticated direct HLS or an explicit conversion-required state
 - `routes`
   - `getRoutes`
 - `subtitles`

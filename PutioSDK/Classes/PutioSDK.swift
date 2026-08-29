@@ -41,10 +41,11 @@ public final class PutioSDK {
     headers: PutioHTTPHeaders = [:],
     query: PutioRequestParameters = [:],
     body: PutioRequestParameters = [:],
+    apiConfig: PutioSDKConfig? = nil,
     as type: T.Type
   ) async throws -> sending T {
     let requestConfig = PutioSDKRequestConfig(
-      apiConfig: config,
+      apiConfig: apiConfig ?? config,
       url: url,
       method: method,
       headers: headers,
@@ -120,7 +121,7 @@ public final class PutioSDK {
 
     var request = URLRequest(url: url)
     request.httpMethod = requestConfig.method.rawValue
-    request.timeoutInterval = config.timeoutInterval
+    request.timeoutInterval = requestConfig.timeoutInterval
 
     for (name, value) in requestConfig.headers
     where !(name.lowercased() == "authorization" && value.isEmpty) {
