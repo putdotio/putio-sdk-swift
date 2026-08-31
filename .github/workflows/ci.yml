@@ -136,7 +136,11 @@ jobs:
       - name: Verify repository
         run: make verify
 
+      # The tvOS/watchOS pass roughly doubles macOS verify time; PRs get the
+      # primary platform, and full platform coverage runs on main pushes and
+      # dispatches before release.
       - name: Verify tvOS and watchOS platforms
+        if: github.event_name != 'pull_request'
         run: make verify-platforms
 
   release:
