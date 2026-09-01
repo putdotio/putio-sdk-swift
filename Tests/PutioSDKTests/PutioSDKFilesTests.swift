@@ -252,6 +252,306 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(resetStartFrom.status, "OK")
   }
 
+  func testResolveVideoPlaybackSourceBuildsAuthenticatedHLSURLAndMapsStartFrom() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/custom/v2/files/42")
+      XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token token / value")
+
+      let components = URLComponents(
+        url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)
+      let queryItems = Dictionary(
+        uniqueKeysWithValues: (components?.queryItems ?? []).map { ($0.name, $0.value) })
+      XCTAssertEqual(queryItems.count, 2)
+      XCTAssertEqual(queryItems["mp4_status"], "1")
+      XCTAssertEqual(queryItems["start_from"], "1")
+
+      return (
+        makeHTTPResponse(for: request, statusCode: 200),
+        playbackFileEnvelope(fileID: 42, fileType: "VIDEO", needConvert: false, startFrom: 91.7)
+      )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(
+        baseURL: "https://media.example.test/custom/v2/",
+        clientID: "ios-app",
+        token: "token / value"
+      ),
+      urlSession: makeTestSession()
+    )
+
+    let resolution = try await sdk.resolveVideoPlaybackSource(fileID: 42)
+
+    guard case .ready(let source) = resolution else {
+      return XCTFail("Expected an HLS playback source")
+    }
+
+    let components = URLComponents(url: source.url, resolvingAgainstBaseURL: false)
+    let queryItems = Dictionary(
+      uniqueKeysWithValues: (components?.queryItems ?? []).map { ($0.name, $0.value) })
+    XCTAssertEqual(components?.scheme, "https")
+    XCTAssertEqual(components?.host, "media.example.test")
+    XCTAssertEqual(components?.path, "/custom/v2/files/42/hls/media.m3u8")
+    XCTAssertEqual(queryItems["subtitle_key"], "all")
+    XCTAssertEqual(queryItems["oauth_token"], "token / value")
+    XCTAssertEqual(source.startFrom, 91)
+  }
+
+  func testResolveVideoPlaybackSourceUsesOneConfigSnapshotAcrossSuspension() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    let requestStarted = expectation(description: "metadata request started")
+    let allowResponse = expectation(description: "metadata response allowed")
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.host, "old.example.test")
+      XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token old-token")
+      requestStarted.fulfill()
+      guard XCTWaiter.wait(for: [allowResponse], timeout: 5) == .completed else {
+        throw URLError(.timedOut)
+      }
+      return (
+        makeHTTPResponse(for: request, statusCode: 200),
+        playbackFileEnvelope(fileID: 42, fileType: "VIDEO", needConvert: false, startFrom: 12)
+      )
+    }
+
+    let owner = PlaybackResolverOwner(
+      config: PutioSDKConfig(
+        baseURL: "https://old.example.test/v2",
+        clientID: "ios-app",
+        token: "old-token"
+      ),
+      urlSession: makeTestSession()
+    )
+    let resolutionTask = Task {
+      try await owner.resolveVideoPlaybackSource(fileID: 42)
+    }
+
+    await fulfillment(of: [requestStarted], timeout: 5)
+
+    await owner.replaceConfig(
+      PutioSDKConfig(
+        baseURL: "https://new.example.test/v2",
+        clientID: "ios-app",
+        token: "new-token"
+      ))
+    allowResponse.fulfill()
+
+    let resolution = try await resolutionTask.value
+    guard case .ready(let source) = resolution else {
+      return XCTFail("Expected an HLS playback source")
+    }
+    let components = URLComponents(url: source.url, resolvingAgainstBaseURL: false)
+    XCTAssertEqual(components?.host, "old.example.test")
+    XCTAssertEqual(
+      components?.queryItems?.first(where: { $0.name == "oauth_token" })?.value,
+      "old-token"
+    )
+  }
+
+  func testResolveVideoPlaybackSourceReportsConversionRequired() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/v2/files/43")
+      return (
+        makeHTTPResponse(for: request, statusCode: 200),
+        playbackFileEnvelope(fileID: 43, fileType: "VIDEO", needConvert: true, startFrom: 0)
+      )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    let resolution = try await sdk.resolveVideoPlaybackSource(fileID: 43)
+
+    XCTAssertEqual(resolution, .conversionRequired)
+  }
+
+  func testResolveVideoPlaybackSourceRejectsNonVideoWithTypedRecovery() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/v2/files/44")
+      return (
+        makeHTTPResponse(for: request, statusCode: 200),
+        playbackFileEnvelope(fileID: 44, fileType: "AUDIO", needConvert: nil, startFrom: 12)
+      )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    do {
+      _ = try await sdk.resolveVideoPlaybackSource(fileID: 44)
+      XCTFail("Expected a non-video file to be rejected")
+    } catch let error as PutioVideoPlaybackResolutionError {
+      XCTAssertEqual(error, .unsupportedFileType(.audio))
+      XCTAssertEqual(error.errorDescription, "Only video files can be resolved for video playback.")
+      XCTAssertEqual(error.recoverySuggestion, "Choose a video file and try again.")
+    } catch {
+      XCTFail("Expected PutioVideoPlaybackResolutionError, got \(type(of: error))")
+    }
+  }
+
+  func testResolveVideoPlaybackSourcePreservesTypedAPIErrors() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/v2/files/404")
+      return (
+        makeHTTPResponse(for: request, statusCode: 404),
+        Data(#"{"error_type":"NOT_FOUND","message":"File not found"}"#.utf8)
+      )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    do {
+      _ = try await sdk.resolveVideoPlaybackSource(fileID: 404)
+      XCTFail("Expected a missing file to fail")
+    } catch let error as PutioSDKError {
+      XCTAssertTrue(error.isNotFound)
+      XCTAssertEqual(error.apiErrorType, "NOT_FOUND")
+    } catch {
+      XCTFail("Expected PutioSDKError, got \(type(of: error))")
+    }
+  }
+
+  func testResolveVideoPlaybackSourcePreservesTypedTransportErrors() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/v2/files/45")
+      throw URLError(.notConnectedToInternet)
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    do {
+      _ = try await sdk.resolveVideoPlaybackSource(fileID: 45)
+      XCTFail("Expected a transport failure")
+    } catch let error as PutioSDKError {
+      XCTAssertTrue(error.isNetworkFailure)
+      XCTAssertEqual((error.underlyingError as? URLError)?.code, .notConnectedToInternet)
+    } catch {
+      XCTFail("Expected PutioSDKError, got \(type(of: error))")
+    }
+  }
+
+  func testResolveVideoPlaybackSourceRejectsMissingRequiredVideoState() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    let cases = [
+      (fileID: 46, providedState: #""start_from": 0"#),
+      (fileID: 47, providedState: #""need_convert": false"#),
+    ]
+
+    for testCase in cases {
+      MockURLProtocol.requestHandler = { request in
+        XCTAssertEqual(request.url?.path, "/v2/files/\(testCase.fileID)")
+        let payload = """
+          {
+            "file": {
+              "id": \(testCase.fileID),
+              "file_type": "VIDEO",
+              \(testCase.providedState)
+            }
+          }
+          """
+        return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
+      }
+
+      let sdk = PutioSDK(
+        config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+        urlSession: makeTestSession()
+      )
+
+      do {
+        _ = try await sdk.resolveVideoPlaybackSource(fileID: testCase.fileID)
+        XCTFail("Expected missing video state to fail decoding")
+      } catch let error as PutioSDKError {
+        XCTAssertTrue(error.isDecodingFailure)
+      } catch {
+        XCTFail("Expected PutioSDKError, got \(type(of: error))")
+      }
+    }
+  }
+
+  func testResolveVideoPlaybackSourceRejectsInvalidStartFromValues() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    let cases = [
+      (fileID: 48, startFrom: "-1"),
+      (fileID: 49, startFrom: "1e100"),
+    ]
+
+    for testCase in cases {
+      MockURLProtocol.requestHandler = { request in
+        XCTAssertEqual(request.url?.path, "/v2/files/\(testCase.fileID)")
+        let payload = """
+          {
+            "file": {
+              "id": \(testCase.fileID),
+              "file_type": "VIDEO",
+              "need_convert": false,
+              "start_from": \(testCase.startFrom)
+            }
+          }
+          """
+        return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
+      }
+
+      let sdk = PutioSDK(
+        config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+        urlSession: makeTestSession()
+      )
+
+      do {
+        _ = try await sdk.resolveVideoPlaybackSource(fileID: testCase.fileID)
+        XCTFail("Expected invalid start-from state to fail decoding")
+      } catch let error as PutioSDKError {
+        XCTAssertTrue(error.isDecodingFailure)
+      } catch {
+        XCTFail("Expected PutioSDKError, got \(type(of: error))")
+      }
+    }
+  }
+
+  func testResolveVideoPlaybackSourceAcceptsIntMaxStartFrom() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/v2/files/50")
+      let payload = """
+        {
+          "file": {
+            "id": 50,
+            "file_type": "VIDEO",
+            "need_convert": false,
+            "start_from": \(Int.max)
+          }
+        }
+        """
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    let resolution = try await sdk.resolveVideoPlaybackSource(fileID: 50)
+
+    guard case .ready(let source) = resolution else {
+      return XCTFail("Expected an HLS playback source")
+    }
+    XCTAssertEqual(source.startFrom, Int.max)
+  }
+
   func testFileModelsCoverKnownUnknownAndHelperURLs() throws {
     let decoder = JSONDecoder()
 
@@ -422,5 +722,47 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(searchQuery.parameters["per_page"], .integer(10))
     XCTAssertEqual(searchQuery.parameters["type"], .string("VIDEO,AUDIO"))
     XCTAssertEqual(continueQuery.parameters["per_page"], .integer(5))
+  }
+}
+
+private func playbackFileEnvelope(
+  fileID: Int,
+  fileType: String,
+  needConvert: Bool?,
+  startFrom: Double
+) -> Data {
+  let conversionState = needConvert.map { #""need_convert": \#($0),"# } ?? ""
+  return Data(
+    """
+    {
+      "file": {
+        "id": \(fileID),
+        "name": "Media \(fileID)",
+        "parent_id": 7,
+        "size": 100,
+        "created_at": "2026-04-20T10:00:00Z",
+        "updated_at": "2026-04-20T10:00:00Z",
+        "file_type": "\(fileType)",
+        \(conversionState)
+        "start_from": \(startFrom)
+      }
+    }
+    """.utf8
+  )
+}
+
+private actor PlaybackResolverOwner {
+  private let sdk: PutioSDK
+
+  init(config: PutioSDKConfig, urlSession: URLSession) {
+    self.sdk = PutioSDK(config: config, urlSession: urlSession)
+  }
+
+  func resolveVideoPlaybackSource(fileID: Int) async throws -> PutioVideoPlaybackResolution {
+    try await sdk.resolveVideoPlaybackSource(fileID: fileID)
+  }
+
+  func replaceConfig(_ config: PutioSDKConfig) {
+    sdk.config = config
   }
 }

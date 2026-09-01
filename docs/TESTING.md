@@ -60,6 +60,7 @@ Current live targets cover:
 - disposable folder create, delete, trash restore, and cleanup flows
 - transfer list/count/info decode against the real API
 - playback-adjacent subtitle decode and reversible start-from roundtrips for owned video fixtures
+- authenticated direct-HLS resolution for an already-playable owned video fixture when one is available
 
 The disposable flow still proves create, list, and delete when the live account
 has trash disabled; restore coverage is reported as skipped instead of changing
