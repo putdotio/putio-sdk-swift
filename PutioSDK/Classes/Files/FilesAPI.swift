@@ -64,7 +64,16 @@ extension PutioSDK {
     let envelope = try await request(
       "/files/\(fileID)/next-file", query: ["file_type": .string(fileType.rawValue)],
       as: PutioNextFileEnvelope.self)
-    return envelope.nextFile
+    return envelope.nextFile.makeNextFile(type: fileType)
+  }
+
+  public func findNextFileIfAvailable(fileID: Int, fileType: PutioNextFileType) async throws
+    -> PutioNextFile?
+  {
+    let envelope = try await request(
+      "/files/\(fileID)/next-file", query: ["file_type": .string(fileType.rawValue)],
+      as: PutioOptionalNextFileEnvelope.self)
+    return envelope.nextFile?.makeNextFile(type: fileType)
   }
 
   public func setSortBy(fileId: Int, sortBy: String) async throws -> PutioOKResponse {
@@ -116,9 +125,45 @@ public struct PutioFilesMoveResponse: Codable, Sendable {
 }
 
 private struct PutioNextFileEnvelope: Decodable {
-  let nextFile: PutioNextFile
+  let nextFile: PutioNextFilePayload
 
   enum CodingKeys: String, CodingKey {
     case nextFile = "next_file"
+  }
+}
+
+private struct PutioOptionalNextFileEnvelope: Decodable {
+  let nextFile: PutioNextFilePayload?
+
+  enum CodingKeys: String, CodingKey {
+    case nextFile = "next_file"
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    nextFile = try container.decode(PutioNextFilePayload?.self, forKey: .nextFile)
+  }
+}
+
+private struct PutioNextFilePayload: Decodable {
+  let id: Int
+  let name: String
+  let parentID: Int
+
+  enum CodingKeys: String, CodingKey {
+    case id
+    case name
+    case parentID = "parent_id"
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(Int.self, forKey: .id)
+    name = try container.decode(String.self, forKey: .name)
+    parentID = try container.decodeIfPresent(Int.self, forKey: .parentID) ?? 0
+  }
+
+  func makeNextFile(type: PutioNextFileType) -> PutioNextFile {
+    PutioNextFile(id: id, name: name, parentID: parentID, type: type)
   }
 }

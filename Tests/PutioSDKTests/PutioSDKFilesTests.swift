@@ -8,6 +8,66 @@ final class PutioSDKFilesTests: XCTestCase {
     super.tearDown()
   }
 
+  func testOptionalNextFileMapsSuccessorAndAbsence() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    var responses = [
+      """
+      {
+        "next_file": {
+          "id": 43,
+          "name": "Episode 2.mkv",
+          "parent_id": 7
+        }
+      }
+      """,
+      #"{"next_file":null}"#,
+    ]
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/v2/files/42/next-file")
+      let components = URLComponents(
+        url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)
+      XCTAssertEqual(
+        components?.queryItems?.first(where: { $0.name == "file_type" })?.value, "VIDEO")
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(responses.removeFirst().utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    let successor = try await sdk.findNextFileIfAvailable(fileID: 42, fileType: .video)
+    let absent = try await sdk.findNextFileIfAvailable(fileID: 42, fileType: .video)
+
+    XCTAssertEqual(successor?.id, 43)
+    XCTAssertEqual(successor?.name, "Episode 2.mkv")
+    XCTAssertEqual(successor?.parentID, 7)
+    XCTAssertEqual(successor?.type, .video)
+    XCTAssertNil(absent)
+  }
+
+  func testOptionalNextFileRejectsMissingEnvelopeKey() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/v2/files/42/next-file")
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    do {
+      _ = try await sdk.findNextFileIfAvailable(fileID: 42, fileType: .video)
+      XCTFail("Expected a missing next_file key to fail decoding")
+    } catch let error as PutioSDKError {
+      XCTAssertTrue(error.isDecodingFailure)
+    } catch {
+      XCTFail("Expected PutioSDKError, got \(type(of: error))")
+    }
+  }
+
   func testFilesAndMediaEndpointsDecodeResponsesAndBuildExpectedRequests() async throws {
     try skipUnlessURLProtocolMockingIsSupported()
     MockURLProtocol.requestHandler = { request in
@@ -138,8 +198,7 @@ final class PutioSDKFilesTests: XCTestCase {
             "next_file": {
               "id": 43,
               "name": "Episode 2.mkv",
-              "parent_id": 7,
-              "file_type": "VIDEO"
+              "parent_id": 7
             }
           }
           """

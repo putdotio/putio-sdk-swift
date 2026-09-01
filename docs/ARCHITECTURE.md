@@ -137,6 +137,7 @@ language mode 5.
   - `moveFiles`
   - `renameFile`
   - `findNextFile`
+  - `findNextFileIfAvailable` for a normal `next_file: null` response
   - `setFileSort`
   - `resetFileSort`
   - `getStartFrom`
