@@ -116,7 +116,7 @@ DEPENDENCIES
   rexml
 
 RUBY VERSION
-   ruby 3.2.4p170
+  ruby 4.0.6p0
 
 BUNDLED WITH
-   2.6.9
+  4.0.19
