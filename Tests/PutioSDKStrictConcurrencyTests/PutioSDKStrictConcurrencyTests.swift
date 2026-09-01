@@ -90,6 +90,7 @@ private func auditAsyncConsumerSurface(_ sdk: PutioSDK) async throws {
   _ = try await sdk.getFiles(parentID: 0)
   _ = try await sdk.getFile(fileID: 1)
   _ = try await sdk.findNextFile(fileID: 1, fileType: .video)
+  _ = try await sdk.findNextFileIfAvailable(fileID: 1, fileType: .video)
   _ = try await sdk.resolveVideoPlaybackSource(fileID: 1)
   _ = try await sdk.getMp4ConversionStatus(fileID: 1)
   _ = try await sdk.getGrants()

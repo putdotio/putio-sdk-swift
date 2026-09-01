@@ -86,6 +86,27 @@ final class PutioSDKPublicSurfaceTests: XCTestCase {
     XCTAssertEqual(source.startFrom, 37)
     XCTAssertEqual(source.url.path, "/v2/files/42/hls/media.m3u8")
   }
+
+  func testOptionalNextFileIsAvailableToPackageConsumers() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    MockURLProtocol.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/v2/files/42/next-file")
+      return (
+        makeHTTPResponse(for: request, statusCode: 200),
+        Data(#"{"next_file":null}"#.utf8)
+      )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    let nextFile: PutioNextFile? =
+      try await sdk.findNextFileIfAvailable(fileID: 42, fileType: .video)
+
+    XCTAssertNil(nextFile)
+  }
 }
 
 private func dumpOutput<T>(_ value: T) -> String {

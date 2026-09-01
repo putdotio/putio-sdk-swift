@@ -323,6 +323,13 @@ open class PutioNextFile: Decodable {
     case type = "file_type"
   }
 
+  init(id: Int, name: String, parentID: Int, type: PutioNextFileType) {
+    self.id = id
+    self.name = name
+    self.parentID = parentID
+    self.type = type
+  }
+
   public required init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.id = try container.decode(Int.self, forKey: .id)
