@@ -140,9 +140,10 @@ open class PutioFile: PutioBaseFile {
     self.isShared = try container.decodeIfPresent(Bool.self, forKey: .isShared) ?? false
 
     let id = try baseContainer.decode(Int.self, forKey: .id)
-    let createdAt = try PutioSDKDateParser.decodeDate(forKey: .createdAt, from: baseContainer)
+    let createdAt =
+      id == 0 ? try PutioSDKDateParser.decodeDate(forKey: .createdAt, from: baseContainer) : nil
     let updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
-    self.updatedAt = try PutioSDKDateParser.parse(updatedAt, fallback: id == 0 ? createdAt : nil)
+    self.updatedAt = try PutioSDKDateParser.parse(updatedAt, fallback: createdAt)
 
     let folderType = try container.decodeIfPresent(String.self, forKey: .folderType) ?? ""
     self.isSharedRoot = folderType == "SHARED_ROOT"
