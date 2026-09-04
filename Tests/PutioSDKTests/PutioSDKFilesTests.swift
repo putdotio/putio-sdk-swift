@@ -731,10 +731,35 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(metadata.aspectRatio, 0)
     XCTAssertEqual(rootFile.id, 0)
     XCTAssertEqual(rootFile.updatedAt, rootFile.createdAt)
-    XCTAssertNoThrow(try PutioSDKDateParser.parse("2026-04-23T19:08:48.356333"))
-    XCTAssertNoThrow(try PutioSDKDateParser.parse("2026-04-23T19:08:48.356333Z"))
+    for value in ["2026-04-23T19:08:48.356333", "2026-04-23T19:08:48.356333Z"] {
+      XCTAssertEqual(
+        try PutioSDKDateParser.parse(value).timeIntervalSince1970, 1_776_971_328.356333,
+        accuracy: 0.001)
+    }
     XCTAssertThrowsError(try PutioSDKDateParser.parse(nil))
     XCTAssertThrowsError(try PutioSDKDateParser.parse("not-a-date"))
+  }
+
+  func testFileDatesDecodeIndependentlyAndRejectInvalidCreationDates() throws {
+    let decoder = JSONDecoder()
+    for id in [0, 42] {
+      for createdAt in ["2026-04-23T19:08:48Z", "2026-04-23T19:08:48.356333"] {
+        let data = Data(
+          """
+          {"id": \(id), "name": "file", "file_type": "VIDEO",
+           "created_at": "\(createdAt)", "updated_at": "2026-04-24T19:08:48Z"}
+          """.utf8)
+        let file = try decoder.decode(PutioFile.self, from: data)
+        XCTAssertEqual(file.createdAt, try PutioSDKDateParser.parse(createdAt))
+        XCTAssertEqual(file.updatedAt.timeIntervalSince1970, 1_777_057_728)
+      }
+      let invalid = Data(
+        """
+        {"id": \(id), "name": "file", "file_type": "VIDEO",
+         "created_at": "not-a-date", "updated_at": "2026-04-24T19:08:48Z"}
+        """.utf8)
+      XCTAssertThrowsError(try decoder.decode(PutioFile.self, from: invalid))
+    }
   }
 
   func testTypedFileInputsBuildExpectedParameters() {
