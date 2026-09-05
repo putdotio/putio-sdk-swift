@@ -13,17 +13,21 @@ public final class PutioSDK {
   public var config: PutioSDKConfig
 
   // Internal test seams for `awaitDeviceCodeAuthorization`. The observer is awaited at
-  // the loop's observable boundaries so tests can park it and cancel at an exact point;
-  // the sleeper replaces `Task.sleep` so a test clock can prove an active sleep is
-  // interrupted. Never set outside the package test targets.
+  // the loop's observable boundaries so tests can park it and cancel at an exact point.
+  // A sleeper replaces the interval sleep entirely; the entry observer is instead
+  // invoked synchronously by the production sleep primitive right before it suspends,
+  // so tests can prove the shipped sleep honours cancellation. Never set outside the
+  // package test targets.
   var deviceCodePollObserver: (@Sendable (PutioDeviceCodePollEvent) async -> Void)?
-  var deviceCodePollSleeper: @Sendable (Duration) async throws -> Void = {
-    try await PutioSDK.sleepBetweenDeviceCodePolls($0)
-  }
+  var deviceCodePollSleeper: (@Sendable (Duration) async throws -> Void)?
+  var deviceCodeSleepEntryObserver: (@Sendable () -> Void)?
 
-  // The production interval sleep. Kept as a named entry point so tests can wrap it,
-  // observe entry, and prove the real primitive honours cancellation.
-  static func sleepBetweenDeviceCodePolls(_ interval: Duration) async throws {
+  // The production interval sleep. `onEntry` runs synchronously immediately before the
+  // suspension, with no suspension point in between.
+  static func sleepBetweenDeviceCodePolls(
+    _ interval: Duration, onEntry: (@Sendable () -> Void)? = nil
+  ) async throws {
+    onEntry?()
     try await Task.sleep(for: interval)
   }
 

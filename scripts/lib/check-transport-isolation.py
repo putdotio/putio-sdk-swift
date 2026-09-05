@@ -28,8 +28,9 @@ REQUIRED_CONCURRENT = {"perform", "execute"}
 FORBIDDEN_CONCURRENT = {"request"}
 # Any use of the instance itself (member access, optional or forced chaining,
 # parenthesised receiver, passing it along) is off-actor state access. `.self`
-# metatype references are preceded by a dot and stay allowed.
-SELF_TOKEN = re.compile(r"(?<![.\w])self\b")
+# metatype references are preceded by a dot (possibly with whitespace or a
+# stripped comment in between) and stay allowed.
+SELF_TOKEN = re.compile(r"(?<!\w)self\b")
 STATE_IDENT = re.compile(r"(?<!\w)(config|delegate)\b")
 LABEL_AFTER = re.compile(r"\s*(?:[A-Za-z_]\w*\s*)?:(?!:)")
 FUNC_DECL = re.compile(r"\bfunc\s+([A-Za-z_]\w*)")
@@ -160,7 +161,8 @@ def is_member_access(text, match):
 
 def forbidden_reads(body):
     for match in SELF_TOKEN.finditer(body):
-        yield match.start(), "self"
+        if not is_member_access(body, match):
+            yield match.start(), "self"
     for match in STATE_IDENT.finditer(body):
         if is_member_access(body, match) or is_argument_label(body, match):
             continue

@@ -381,7 +381,10 @@ final class PutioSDKAuthTests: XCTestCase {
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(60))
     }
-    defer { Task { await sleeper.abandon() } }
+    defer {
+      task.cancel()
+      Task { await sleeper.abandon() }
+    }
     try await sleeper.waitUntilSleeping()
     task.cancel()
 
@@ -394,58 +397,21 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertLessThan(clock.now - start, .seconds(5), "cancellation must interrupt the sleep")
   }
 
-  // Same contract against the production sleep primitive. The wrapper signals entry
-  // synchronously and then calls `PutioSDK.sleepBetweenDeviceCodePolls` with no
-  // suspension point in between, so once the test observes entry the SDK task is either
-  // about to enter or already inside the real `Task.sleep`. The bound is on the response
-  // to cancellation, far below the interval, so an uncancellable primitive that waits out
-  // its interval fails regardless of when the test happened to observe entry.
-  func testAwaitDeviceCodeAuthorizationProductionSleepIsInterruptedByCancellation()
-    async throws
-  {
-    let counter = PollCounter()
-    try installMockRequestHandler { request in
-      _ = counter.increment()
-      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
-    }
-
-    let sdk = PutioSDK(
-      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
-      urlSession: makeTestSession()
-    )
+  // The shipped sleep primitive, exercised directly. Its entry hook fires synchronously
+  // immediately before `Task.sleep`, so once the test observes entry there is no
+  // suspension point left before the real sleep; cancelling there must interrupt it. The
+  // bound is on the response to cancellation, far below the interval, so an
+  // uncancellable primitive that waits out its interval fails deterministically.
+  func testProductionDeviceCodeSleepIsInterruptedByCancellation() async throws {
     let entry = SleepEntrySignal()
-    sdk.deviceCodePollSleeper = { interval in
-      entry.markEntered()
-      try await PutioSDK.sleepBetweenDeviceCodePolls(interval)
-    }
-
     let task = Task {
-      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(20))
+      try await PutioSDK.sleepBetweenDeviceCodePolls(.seconds(20), onEntry: entry.markEntered)
     }
-    defer { entry.abandon() }
+    defer {
+      task.cancel()
+      entry.abandon()
+    }
     try await entry.waitUntilEntered()
-
-    let clock = ContinuousClock()
-    let cancelled = clock.now
-    task.cancel()
-    do {
-      _ = try await task.value
-      XCTFail("Expected cancellation to propagate")
-    } catch is CancellationError {
-    }
-    XCTAssertEqual(counter.value, 1)
-    XCTAssertLessThan(
-      clock.now - cancelled, .seconds(2), "production sleep must respond to cancellation")
-  }
-
-  // The shipped default sleeper, exercised directly: it must be the cancellable
-  // primitive, not a detached or pre-checked stand-in.
-  func testDefaultDeviceCodePollSleeperIsInterruptedByCancellation() async throws {
-    let sdk = PutioSDK(config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"))
-    let sleeper = sdk.deviceCodePollSleeper
-
-    let task = Task { try await sleeper(.seconds(20)) }
-    try await Task.sleep(for: .milliseconds(300))
 
     let clock = ContinuousClock()
     let cancelled = clock.now
@@ -456,11 +422,12 @@ final class PutioSDKAuthTests: XCTestCase {
     } catch is CancellationError {
     }
     XCTAssertLessThan(
-      clock.now - cancelled, .seconds(2), "default sleeper must respond to cancellation")
+      clock.now - cancelled, .seconds(2), "production sleep must respond to cancellation")
   }
 
-  // The full polling loop with the default sleeper installed. The observer only parks
-  // at `.willSleep` and releases; the interval sleep that follows is the shipped one.
+  // The full polling loop with no sleeper override, so the interval sleep is the shipped
+  // primitive. The entry observer proves the loop reached that primitive before the
+  // test cancels.
   func testAwaitDeviceCodeAuthorizationWithDefaultSleeperIsInterruptedByCancellation()
     async throws
   {
@@ -474,18 +441,17 @@ final class PutioSDKAuthTests: XCTestCase {
       config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
       urlSession: makeTestSession()
     )
-    let barrier = PollBarrier()
-    sdk.deviceCodePollObserver = { event in
-      if event == .willSleep { await barrier.park() }
-    }
+    let entry = SleepEntrySignal()
+    sdk.deviceCodeSleepEntryObserver = entry.markEntered
 
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(20))
     }
-    defer { Task { await barrier.abandon() } }
-    try await barrier.waitUntilParked()
-    await barrier.release()
-    try await Task.sleep(for: .milliseconds(300))
+    defer {
+      task.cancel()
+      entry.abandon()
+    }
+    try await entry.waitUntilEntered()
 
     let clock = ContinuousClock()
     let cancelled = clock.now
@@ -524,7 +490,10 @@ final class PutioSDKAuthTests: XCTestCase {
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "READY", pollInterval: .seconds(60))
     }
-    defer { Task { await barrier.abandon() } }
+    defer {
+      task.cancel()
+      Task { await barrier.abandon() }
+    }
     try await barrier.waitUntilParked()
     task.cancel()
     await barrier.release()

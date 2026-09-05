@@ -25,7 +25,7 @@ for why and for the full strict-concurrency contract.
 - `make verify` runs `scripts/check-podspec-package.rb` through Bundler to ensure CocoaPods package pruning keeps `VERSION` and `podspec_helper.rb` without leaking a downloaded helper into later platform validation
 - `make verify` runs `./scripts/check-sendable-audit.sh` to keep the strict-concurrency `Sendable` audit list exhaustive
 - `make verify` runs `./scripts/check-transport-isolation.sh` so `PutioSDK.request` stays caller-isolated, `perform`/`execute` stay `@concurrent`, and no `@concurrent` transport body mentions `self` or reads bare `config`/`delegate`; parser fixtures live under `scripts/fixtures/transport-isolation/`
-- Device-code cancellation tests park the SDK through the internal `deviceCodePollObserver` and `deviceCodePollSleeper` seams instead of URLSession side effects, and one test cancels the production `Task.sleep` directly
+- Device-code cancellation tests park the SDK through the internal `deviceCodePollObserver`, `deviceCodePollSleeper`, and `deviceCodeSleepEntryObserver` seams instead of URLSession side effects; the production sleep primitive is cancelled directly and through the default polling loop
 - `make verify` runs `./scripts/check-platform-simulator-destination.sh` to cover the tvOS/watchOS destination parser with captured simulator listings
 - `make verify` runs package-level SwiftPM tests, including `PutioSDKTests` and `PutioSDKStrictConcurrencyTests` in one combined `swift test` invocation
 - `make verify` fails if source line coverage for `PutioSDK/Classes` drops below `90%`
