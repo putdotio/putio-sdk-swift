@@ -161,11 +161,17 @@ OPERATOR_CHARS = set("./=-+!*%<>&|^~?")
 
 
 def is_member_access(text, match):
-    """True when the token is preceded by a standalone member-access dot."""
+    """True when the token is preceded by a member-access dot: a standalone `.`, or
+    the optional-chaining `?.` / forced-unwrap `!.` forms."""
     before = text[: match.start()].rstrip()
     if not before.endswith("."):
         return False
-    return len(before) < 2 or before[-2] not in OPERATOR_CHARS
+    if len(before) < 2:
+        return True
+    previous = before[-2]
+    if previous in "?!":
+        return len(before) < 3 or before[-3] not in OPERATOR_CHARS
+    return previous not in OPERATOR_CHARS
 
 
 def forbidden_reads(body):

@@ -23,6 +23,8 @@ public final class PutioSDK {
     _ = requestConfig
       .baseURL
     _ = delegateReference?.describe()
+    let optionalSnapshot: PutioSDKConfig? = requestConfig
+    _ = (optionalSnapshot?.config, optionalSnapshot!.delegate, optionalSnapshot ?. config)
     _ = PutioSDKErrorRequestInformation(config: requestConfig)
     _ = "\(/* ) */ requestConfig.baseURL) \(String(describing: requestConfig.baseURL, config: 1))"
     _ = PutioSDKErrorRequestInformation(
