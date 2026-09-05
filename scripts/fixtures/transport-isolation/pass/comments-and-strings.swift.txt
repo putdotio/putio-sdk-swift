@@ -26,7 +26,11 @@ public final class PutioSDK {
     let multiline = ##/
       { self.config } "delegate"
       /##
-    _ = (sentinel, block, nested, opener, multiline)
+    let spaced = requestConfig . baseURL
+    let commented = requestConfig./* hop */baseURL
+    let chained = delegateReference
+      .describe()
+    _ = (sentinel, block, nested, opener, multiline, spaced, commented, chained)
     return try JSONDecoder().decode(type, from: data)
   }
 

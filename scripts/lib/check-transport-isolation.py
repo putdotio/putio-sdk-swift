@@ -25,7 +25,7 @@ from pathlib import Path
 REQUIRED_CONCURRENT = {"perform", "execute"}
 FORBIDDEN_CONCURRENT = {"request"}
 SELF_MEMBER = re.compile(r"(?<![.\w])self\s*[?!]?\s*\.")
-STATE_IDENT = re.compile(r"(?<![.\w])(config|delegate)\b")
+STATE_IDENT = re.compile(r"(?<!\w)(config|delegate)\b")
 LABEL_AFTER = re.compile(r"\s*(?:[A-Za-z_]\w*\s*)?:(?!:)")
 FUNC_DECL = re.compile(r"\bfunc\s+([A-Za-z_]\w*)")
 
@@ -140,12 +140,18 @@ def is_argument_label(text, match):
     return LABEL_AFTER.match(text, match.end()) is not None
 
 
+def is_member_access(text, match):
+    before = text[: match.start()].rstrip()
+    return before.endswith(".")
+
+
 def forbidden_reads(body):
     for match in SELF_MEMBER.finditer(body):
         yield match.start(), "self"
     for match in STATE_IDENT.finditer(body):
-        if not is_argument_label(body, match):
-            yield match.start(), match.group(1)
+        if is_member_access(body, match) or is_argument_label(body, match):
+            continue
+        yield match.start(), match.group(1)
 
 
 def audit(path):
@@ -162,9 +168,7 @@ def audit(path):
             failures.append(f"line {line_of(text, attr.start())}: @concurrent is not attached to a func")
             continue
         name = decl.group(1)
-        if name in concurrent:
-            failures.append(f"line {line_of(text, decl.start())}: duplicate @concurrent func `{name}`")
-        concurrent[name] = decl.start()
+        concurrent[decl.start()] = name
 
         depth, k = 0, decl.end()
         while k < len(text) and not (text[k] == "{" and depth == 0):
@@ -187,13 +191,22 @@ def audit(path):
                 f"line {line}: `{what}` read inside @concurrent `{name}`: {lines[line - 1].strip()}"
             )
 
-    for name in sorted(FORBIDDEN_CONCURRENT & concurrent.keys()):
-        failures.append(f"line {line_of(text, concurrent[name])}: `{name}` must stay caller-isolated, not @concurrent")
-    for name in sorted(REQUIRED_CONCURRENT - concurrent.keys()):
-        failures.append(f"`{name}` must be @concurrent")
+    # Every declaration (overloads included) of each named helper must carry the
+    # expected annotation state, so an unannotated overload cannot slip past.
+    annotated_offsets = set(concurrent.keys())
     for name in sorted(REQUIRED_CONCURRENT | FORBIDDEN_CONCURRENT):
-        if not re.search(r"\bfunc\s+" + name + r"\b", text):
+        declarations = [m for m in FUNC_DECL.finditer(text) if m.group(1) == name]
+        if not declarations:
             failures.append(f"could not find `func {name}` declaration")
+            continue
+        for decl in declarations:
+            annotated = decl.start() in annotated_offsets
+            if name in REQUIRED_CONCURRENT and not annotated:
+                failures.append(f"line {line_of(text, decl.start())}: `{name}` must be @concurrent")
+            if name in FORBIDDEN_CONCURRENT and annotated:
+                failures.append(
+                    f"line {line_of(text, decl.start())}: `{name}` must stay caller-isolated, not @concurrent"
+                )
 
     print(f"Transport isolation audit: {len(concurrent)} @concurrent body(ies) checked in {path}.")
     for failure in failures:

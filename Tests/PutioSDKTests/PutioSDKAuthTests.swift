@@ -381,7 +381,8 @@ final class PutioSDKAuthTests: XCTestCase {
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(60))
     }
-    await sleeper.waitUntilSleeping()
+    defer { Task { await sleeper.abandon() } }
+    try await sleeper.waitUntilSleeping()
     task.cancel()
 
     do {
@@ -420,7 +421,8 @@ final class PutioSDKAuthTests: XCTestCase {
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: interval)
     }
-    await barrier.waitUntilParked()
+    defer { Task { await barrier.abandon() } }
+    try await barrier.waitUntilParked()
     let sleepStarted = clock.now
     await barrier.release()
     // Give the SDK time to resume from the observer and suspend inside `Task.sleep`.
@@ -461,7 +463,8 @@ final class PutioSDKAuthTests: XCTestCase {
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "READY", pollInterval: .seconds(60))
     }
-    await barrier.waitUntilParked()
+    defer { Task { await barrier.abandon() } }
+    try await barrier.waitUntilParked()
     task.cancel()
     await barrier.release()
 
@@ -570,7 +573,7 @@ private final class RecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
 // with `CancellationError` when the sleeping task is cancelled, never on its own.
 private actor ObservableSleeper {
   private var sleeper: CheckedContinuation<Void, Error>?
-  private var waiter: CheckedContinuation<Void, Never>?
+  private var waiter: CheckedContinuation<Void, Error>?
   private var isSleeping = false
 
   func sleep() async throws {
@@ -599,9 +602,33 @@ private actor ObservableSleeper {
     sleeper = nil
   }
 
-  func waitUntilSleeping() async {
+  func waitUntilSleeping() async throws {
     if isSleeping { return }
-    await withCheckedContinuation { waiter = $0 }
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      waiter = continuation
+      scheduleDeadline(stage: "SDK to enter the poll sleep")
+    }
+  }
+
+  // Failure cleanup: wake anything still suspended so a failed test reports instead of
+  // hanging on a continuation nobody will resume.
+  func abandon() {
+    waiter?.resume(throwing: RendezvousTimeout(stage: "abandoned sleeper wait"))
+    waiter = nil
+    sleeper?.resume(throwing: CancellationError())
+    sleeper = nil
+  }
+
+  private func scheduleDeadline(stage: String) {
+    Task {
+      try? await Task.sleep(for: .seconds(5))
+      await self.expireWaiter(stage: stage)
+    }
+  }
+
+  private func expireWaiter(stage: String) {
+    waiter?.resume(throwing: RendezvousTimeout(stage: stage))
+    waiter = nil
   }
 
   private func cancel() {
@@ -612,7 +639,7 @@ private actor ObservableSleeper {
 
 private actor PollBarrier {
   private var parked: CheckedContinuation<Void, Never>?
-  private var waiter: CheckedContinuation<Void, Never>?
+  private var waiter: CheckedContinuation<Void, Error>?
   private var isParked = false
   private var isReleased = false
 
@@ -624,9 +651,12 @@ private actor PollBarrier {
     await withCheckedContinuation { parked = $0 }
   }
 
-  func waitUntilParked() async {
+  func waitUntilParked() async throws {
     if isParked { return }
-    await withCheckedContinuation { waiter = $0 }
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      waiter = continuation
+      scheduleDeadline(stage: "SDK to park at the observer")
+    }
   }
 
   func release() {
@@ -634,4 +664,31 @@ private actor PollBarrier {
     parked?.resume()
     parked = nil
   }
+
+  // Failure cleanup: wake anything still suspended so a failed test reports instead of
+  // hanging on a continuation nobody will resume.
+  func abandon() {
+    waiter?.resume(throwing: RendezvousTimeout(stage: "abandoned barrier wait"))
+    waiter = nil
+    release()
+  }
+
+  private func scheduleDeadline(stage: String) {
+    Task {
+      try? await Task.sleep(for: .seconds(5))
+      await self.expireWaiter(stage: stage)
+    }
+  }
+
+  private func expireWaiter(stage: String) {
+    waiter?.resume(throwing: RendezvousTimeout(stage: stage))
+    waiter = nil
+  }
+}
+
+// A rendezvous that never happens fails the test loudly after five seconds instead of
+// hanging on a continuation nobody will resume.
+private struct RendezvousTimeout: Error, CustomStringConvertible {
+  let stage: String
+  var description: String { "timed out waiting for \(stage)" }
 }
