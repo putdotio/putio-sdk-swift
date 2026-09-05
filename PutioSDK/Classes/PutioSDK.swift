@@ -18,7 +18,13 @@ public final class PutioSDK {
   // interrupted. Never set outside the package test targets.
   var deviceCodePollObserver: (@Sendable (PutioDeviceCodePollEvent) async -> Void)?
   var deviceCodePollSleeper: @Sendable (Duration) async throws -> Void = {
-    try await Task.sleep(for: $0)
+    try await PutioSDK.sleepBetweenDeviceCodePolls($0)
+  }
+
+  // The production interval sleep. Kept as a named entry point so tests can wrap it,
+  // observe entry, and prove the real primitive honours cancellation.
+  static func sleepBetweenDeviceCodePolls(_ interval: Duration) async throws {
+    try await Task.sleep(for: interval)
   }
 
   public convenience init(config: PutioSDKConfig) {

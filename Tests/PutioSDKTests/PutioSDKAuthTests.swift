@@ -394,10 +394,12 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertLessThan(clock.now - start, .seconds(5), "cancellation must interrupt the sleep")
   }
 
-  // Same contract against the production sleeper. The observer parks at `.willSleep`,
-  // is released, and the SDK enters the real `Task.sleep` for a short interval before
-  // the test cancels. An uncancellable production sleeper would wait out the whole
-  // interval and trip the elapsed bound; a cancellable one returns almost immediately.
+  // Same contract against the production sleep primitive. The wrapper signals entry
+  // synchronously and then calls `PutioSDK.sleepBetweenDeviceCodePolls` with no
+  // suspension point in between, so once the test observes entry the SDK task is either
+  // about to enter or already inside the real `Task.sleep`; cancelling there must
+  // interrupt it. A default sleeper that cannot be cancelled waits out the interval and
+  // trips the elapsed bound.
   func testAwaitDeviceCodeAuthorizationProductionSleepIsInterruptedByCancellation()
     async throws
   {
@@ -411,22 +413,20 @@ final class PutioSDKAuthTests: XCTestCase {
       config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
       urlSession: makeTestSession()
     )
-    let barrier = PollBarrier()
-    sdk.deviceCodePollObserver = { event in
-      if event == .willSleep { await barrier.park() }
+    let entry = SleepEntrySignal()
+    sdk.deviceCodePollSleeper = { interval in
+      entry.markEntered()
+      try await PutioSDK.sleepBetweenDeviceCodePolls(interval)
     }
 
-    let interval = Duration.seconds(3)
+    let interval = Duration.seconds(5)
     let clock = ContinuousClock()
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: interval)
     }
-    defer { Task { await barrier.abandon() } }
-    try await barrier.waitUntilParked()
-    let sleepStarted = clock.now
-    await barrier.release()
-    // Give the SDK time to resume from the observer and suspend inside `Task.sleep`.
-    try await Task.sleep(for: .milliseconds(250))
+    defer { entry.abandon() }
+    try await entry.waitUntilEntered()
+    let entered = clock.now
     task.cancel()
 
     do {
@@ -435,8 +435,7 @@ final class PutioSDKAuthTests: XCTestCase {
     } catch is CancellationError {
     }
     XCTAssertEqual(counter.value, 1)
-    XCTAssertLessThan(
-      clock.now - sleepStarted, interval, "production sleep must not run to completion")
+    XCTAssertLessThan(clock.now - entered, interval, "production sleep must not run to completion")
   }
 
   // Cancellation after a poll has produced a result. The SDK parks at `.pollCompleted`
@@ -634,6 +633,52 @@ private actor ObservableSleeper {
   private func cancel() {
     sleeper?.resume(throwing: CancellationError())
     sleeper = nil
+  }
+}
+
+// Synchronous entry signal for the production-sleep test. `markEntered` never suspends,
+// so the SDK task proceeds straight from it into the real sleep primitive.
+private final class SleepEntrySignal: @unchecked Sendable {
+  private let lock = NSLock()
+  private var entered = false
+  private var waiter: CheckedContinuation<Void, Error>?
+
+  func markEntered() {
+    lock.lock()
+    entered = true
+    let waiter = self.waiter
+    self.waiter = nil
+    lock.unlock()
+    waiter?.resume()
+  }
+
+  func waitUntilEntered() async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      lock.lock()
+      if entered {
+        lock.unlock()
+        continuation.resume()
+        return
+      }
+      waiter = continuation
+      lock.unlock()
+      Task {
+        try? await Task.sleep(for: .seconds(5))
+        self.expire()
+      }
+    }
+  }
+
+  func abandon() {
+    expire()
+  }
+
+  private func expire() {
+    lock.lock()
+    let waiter = self.waiter
+    self.waiter = nil
+    lock.unlock()
+    waiter?.resume(throwing: RendezvousTimeout(stage: "SDK to enter the production sleep"))
   }
 }
 

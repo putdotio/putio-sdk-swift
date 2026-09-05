@@ -30,7 +30,9 @@ public final class PutioSDK {
     let commented = requestConfig./* hop */baseURL
     let chained = delegateReference
       .describe()
-    _ = (sentinel, block, nested, opener, multiline, spaced, commented, chained)
+    let escapedSlash = #/a\/#{ self.config }/#
+    let `escapedLocal` = requestConfig.baseURL
+    _ = (sentinel, block, nested, opener, multiline, spaced, commented, chained, escapedSlash, `escapedLocal`)
     return try JSONDecoder().decode(type, from: data)
   }
 

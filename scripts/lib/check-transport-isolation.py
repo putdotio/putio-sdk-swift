@@ -11,7 +11,9 @@ Rules (see docs/ARCHITECTURE.md, "Internal transport isolation"):
     are exempt; ternary operands and other expressions are not.
 
 Comments, string literal text (including multi-line and raw strings), and
-extended regex literals (`#/.../#`) are blanked before parsing so they cannot
+extended regex literals (`#/.../#`, honouring backslash escapes) are blanked
+before parsing; backtick identifier escapes are dropped so an escaped self or
+config audits as the plain identifier. All of that happens before parsing so they cannot
 hide or fake a match. Interpolation expressions are executable Swift and are
 lexed with the same rules, including comments and nested strings inside them.
 Bare `/regex/` literals are not handled: the library target compiles in Swift 5
@@ -70,7 +72,9 @@ def lex(source, i, out, until_close_paren=False):
                 i = scan_regex(source, k, hashes, out)
                 continue
         ch = source[i]
-        out.append(ch)
+        # Swift allows escaping identifiers in backticks (`self`, `config`); the escaped
+        # form names the same entity, so drop the backticks and audit the identifier.
+        out.append(" " if ch == "`" else ch)
         i += 1
         if until_close_paren:
             if ch == "(":
@@ -117,6 +121,12 @@ def scan_regex(source, start, hashes, out):
     out.append("/")
     j = start + 1
     while j < n and not source.startswith(closing, j):
+        if source[j] == "\\" and j + 1 < n:
+            # An escaped character (including `\/`) never terminates the literal.
+            out.append(blank(source[j]))
+            out.append(blank(source[j + 1]))
+            j += 2
+            continue
         out.append(blank(source[j]))
         j += 1
     out.append("/")
