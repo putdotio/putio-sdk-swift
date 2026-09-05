@@ -355,24 +355,33 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertEqual(delegate.errors.map(\.statusCode), [500])
   }
 
-  // Cancellation during the sleep between polls: the poll completes first (observed via
-  // URLSession task completion), the host gets time to enter its 60s sleep, and the
-  // elapsed bound proves the sleep itself was interrupted rather than waited out.
+  // Cancellation during the sleep between polls. The SDK parks at its `.willSleep`
+  // boundary, the test cancels there, and the elapsed bound proves `Task.sleep` gave up
+  // immediately instead of waiting out the 60s interval.
   func testAwaitDeviceCodeAuthorizationStopsWhenCancelledDuringSleep() async throws {
     let counter = PollCounter()
     try installMockRequestHandler { request in
       _ = counter.increment()
       return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
     }
-    let observer = TaskCompletionObserver()
-    let host = DeviceCodePollingHost(urlSession: makeTestSession(taskObserver: observer))
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let barrier = PollBarrier()
+    sdk.deviceCodePollObserver = { event in
+      if event == .willSleep { await barrier.park() }
+    }
 
     let clock = ContinuousClock()
     let start = clock.now
-    let task = Task { try await host.poll(code: "PENDING", pollInterval: .seconds(60)) }
-    try observer.waitUntilTaskCompleted()
-    try await Task.sleep(for: .milliseconds(200))
+    let task = Task {
+      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(60))
+    }
+    await barrier.waitUntilParked()
     task.cancel()
+    await barrier.release()
 
     do {
       _ = try await task.value
@@ -383,36 +392,33 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertLessThan(clock.now - start, .seconds(5), "cancellation must interrupt the sleep")
   }
 
-  // Cancellation after a poll has produced a result: the host actor is held busy while
-  // the request completes, so the resumption carrying `.authorized` stays queued behind
-  // the hold. Cancelling before releasing the hold guarantees the post-poll check runs
-  // on a cancelled task with a result already in hand. Removing that check would return
-  // `.authorized` here.
+  // Cancellation after a poll has produced a result. The SDK parks at `.pollCompleted`
+  // with `.authorized` already in hand; cancelling there and releasing proves the
+  // post-poll cancellation check wins. Removing that check returns `.authorized` here.
   func testAwaitDeviceCodeAuthorizationDiscardsResultWhenCancelledAfterPollCompletes()
     async throws
   {
-    let gate = PollGate()
     try installMockRequestHandler { request in
-      gate.markRequestStarted()
-      try gate.waitUntilReleased()
-      return (
+      (
         makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":"tv-token"}"#.utf8)
       )
     }
-    let observer = TaskCompletionObserver()
-    let host = DeviceCodePollingHost(urlSession: makeTestSession(taskObserver: observer))
 
-    let task = Task { try await host.poll(code: "READY", pollInterval: .seconds(60)) }
-    try gate.waitUntilRequestStarted()
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let barrier = PollBarrier()
+    sdk.deviceCodePollObserver = { event in
+      if event == .pollCompleted { await barrier.park() }
+    }
 
-    let hold = ActorHold()
-    Task { await host.hold(hold) }
-    try hold.waitUntilHeld()
-
-    gate.release()
-    try observer.waitUntilTaskCompleted()
+    let task = Task {
+      try await sdk.awaitDeviceCodeAuthorization(code: "READY", pollInterval: .seconds(60))
+    }
+    await barrier.waitUntilParked()
     task.cancel()
-    hold.release()
+    await barrier.release()
 
     do {
       let authorization = try await task.value
@@ -511,64 +517,31 @@ private final class RecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
   }
 }
 
-// Owns the SDK on an actor so `awaitDeviceCodeAuthorization` (caller-isolated under
-// NonisolatedNonsendingByDefault) resumes here after each poll; `hold` keeps the actor
-// busy so that resumption stays queued until the test releases it.
-private actor DeviceCodePollingHost {
-  private let sdk: PutioSDK
+// Suspending rendezvous between a test and the SDK's poll observer. `park` suspends the
+// SDK until `release`; `waitUntilParked` suspends the test until the SDK has parked.
+// Everything suspends rather than blocking, so no cooperative-pool thread is held.
+private actor PollBarrier {
+  private var parked: CheckedContinuation<Void, Never>?
+  private var waiter: CheckedContinuation<Void, Never>?
+  private var isParked = false
+  private var isReleased = false
 
-  init(urlSession: URLSession) {
-    sdk = PutioSDK(
-      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
-      urlSession: urlSession)
+  func park() async {
+    isParked = true
+    waiter?.resume()
+    waiter = nil
+    if isReleased { return }
+    await withCheckedContinuation { parked = $0 }
   }
 
-  func poll(code: String, pollInterval: Duration) async throws -> PutioDeviceCodeAuthorization {
-    try await sdk.awaitDeviceCodeAuthorization(code: code, pollInterval: pollInterval)
+  func waitUntilParked() async {
+    if isParked { return }
+    await withCheckedContinuation { waiter = $0 }
   }
 
-  func hold(_ hold: ActorHold) {
-    hold.markHeld()
-    hold.waitUntilReleased()
+  func release() {
+    isReleased = true
+    parked?.resume()
+    parked = nil
   }
-}
-
-private final class ActorHold: @unchecked Sendable {
-  private let held = DispatchSemaphore(value: 0)
-  private let released = DispatchSemaphore(value: 0)
-
-  func markHeld() { held.signal() }
-
-  func waitUntilHeld() throws {
-    guard held.wait(timeout: .now() + .seconds(5)) == .success else {
-      throw TestSynchronizationTimeout(stage: "actor hold")
-    }
-  }
-
-  func waitUntilReleased() {
-    _ = released.wait(timeout: .now() + .seconds(5))
-  }
-
-  func release() { released.signal() }
-}
-
-private final class PollGate: @unchecked Sendable {
-  private let started = DispatchSemaphore(value: 0)
-  private let released = DispatchSemaphore(value: 0)
-
-  func markRequestStarted() { started.signal() }
-
-  func waitUntilRequestStarted() throws {
-    guard started.wait(timeout: .now() + .seconds(5)) == .success else {
-      throw TestSynchronizationTimeout(stage: "poll request start")
-    }
-  }
-
-  func waitUntilReleased() throws {
-    guard released.wait(timeout: .now() + .seconds(5)) == .success else {
-      throw TestSynchronizationTimeout(stage: "poll release")
-    }
-  }
-
-  func release() { released.signal() }
 }

@@ -184,11 +184,13 @@ extension PutioSDK {
         throw CancellationError()
       }
 
+      await deviceCodePollObserver?(.pollCompleted)
       try Task.checkCancellation()
       if let authorization {
         return authorization
       }
 
+      await deviceCodePollObserver?(.willSleep)
       try await Task.sleep(for: interval)
     }
   }
@@ -231,6 +233,13 @@ extension PutioSDK {
       "/two_factor/recovery_codes/refresh", method: .post, as: PutioRecoveryCodesEnvelope.self)
     return envelope.recoveryCodes
   }
+}
+
+// Boundaries of one `awaitDeviceCodeAuthorization` iteration, reported through the
+// internal `deviceCodePollObserver` seam.
+enum PutioDeviceCodePollEvent: Sendable {
+  case pollCompleted
+  case willSleep
 }
 
 private struct PutioOAuthTokenEnvelope: Decodable {

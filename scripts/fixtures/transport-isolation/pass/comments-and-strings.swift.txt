@@ -1,0 +1,29 @@
+public final class PutioSDK {
+  public var config: PutioSDKConfig
+  public weak var delegate: PutioSDKDelegate?
+
+  func request<T>(_ url: String, as type: T.Type) async throws -> sending T {
+    let snapshot = config
+    return try await perform(config: snapshot, delegateReference: PutioSDKDelegateReference(delegate), as: type)
+  }
+
+  /* block comment mentioning self.config and delegate { */
+  @concurrent
+  private func perform<T>(config requestConfig: PutioSDKConfig, delegateReference: PutioSDKDelegateReference, as type: T.Type) async throws -> sending T {
+    // line comment: self.config delegate }
+    let sentinel = "}" + "\(requestConfig.baseURL) delegate \"self.config\"" + #"raw "self.delegate" }"#
+    let block = """
+      self.config delegate }
+      """
+    let data = try await execute(requestConfig: requestConfig, delegateReference: delegateReference)
+    _ = String(decoding: data, as: UTF8.self)
+    _ = PutioSDKErrorRequestInformation(config: requestConfig)
+    _ = (sentinel, block)
+    return try JSONDecoder().decode(type, from: data)
+  }
+
+  @concurrent private func execute(requestConfig: PutioSDKConfig, delegateReference: PutioSDKDelegateReference) async throws -> Data {
+    delegateReference.notify(PutioSDKError())
+    return Data()
+  }
+}

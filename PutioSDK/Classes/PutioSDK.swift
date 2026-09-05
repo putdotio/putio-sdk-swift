@@ -12,6 +12,11 @@ public final class PutioSDK {
 
   public var config: PutioSDKConfig
 
+  // Internal test seam: `awaitDeviceCodeAuthorization` awaits this at its observable
+  // boundaries so deterministic tests can park the loop and cancel at an exact point.
+  // Never set outside the package test targets.
+  var deviceCodePollObserver: (@Sendable (PutioDeviceCodePollEvent) async -> Void)?
+
   public convenience init(config: PutioSDKConfig) {
     self.init(config: config, urlSession: .shared)
   }
