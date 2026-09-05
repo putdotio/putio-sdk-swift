@@ -43,6 +43,7 @@ public final class PutioSDK {
     query: PutioRequestParameters = [:],
     body: PutioRequestParameters = [:],
     apiConfig: PutioSDKConfig? = nil,
+    isExpectedFailure: @escaping @Sendable (PutioSDKError) -> Bool = { _ in false },
     as type: T.Type
   ) async throws -> sending T {
     let requestConfig = PutioSDKRequestConfig(
@@ -54,7 +55,9 @@ public final class PutioSDK {
       body: body
     )
     return try await perform(
-      requestConfig: requestConfig, delegate: PutioSDKDelegateReference(delegate), as: type)
+      requestConfig: requestConfig,
+      delegate: PutioSDKDelegateReference(delegate, isExpectedFailure: isExpectedFailure),
+      as: type)
   }
 
   // Runs off the caller's actor (see docs/ARCHITECTURE.md#swift-concurrency-posture):
@@ -158,15 +161,24 @@ public final class PutioSDK {
 
 // Carries the delegate across the executor hop without retaining it. Created on the
 // caller's actor and only read afterwards, so the weak load is the sole cross-thread
-// access and the Swift runtime performs it atomically.
+// access and the Swift runtime performs it atomically. `isExpectedFailure` lets a
+// caller own a failure it will translate into a typed result (for example the
+// device-code 404 that means "expired"); every other failure still reaches the
+// delegate from the global executor, never on the caller's actor.
 final class PutioSDKDelegateReference {
   private weak var delegate: PutioSDKDelegate?
+  private let isExpectedFailure: @Sendable (PutioSDKError) -> Bool
 
-  init(_ delegate: PutioSDKDelegate?) {
+  init(
+    _ delegate: PutioSDKDelegate?,
+    isExpectedFailure: @escaping @Sendable (PutioSDKError) -> Bool = { _ in false }
+  ) {
     self.delegate = delegate
+    self.isExpectedFailure = isExpectedFailure
   }
 
   func notify(_ error: PutioSDKError) {
+    guard !isExpectedFailure(error) else { return }
     delegate?.onPutioSDKError(error: error)
   }
 }

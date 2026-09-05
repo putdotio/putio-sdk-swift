@@ -72,9 +72,8 @@ final class PutioSDKTransportTests: XCTestCase {
   // observes a request after the SDK has already read `config`, so an ordering test
   // cannot distinguish the on-actor snapshot from the old off-actor read.
   func testInFlightRequestDoesNotRetainReleasedDelegate() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     let gate = RequestGate()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       gate.markRequestStarted()
       try gate.waitUntilReleased()
       return (makeHTTPResponse(for: request, statusCode: 500), Data(#"{"status":"ERROR"}"#.utf8))
