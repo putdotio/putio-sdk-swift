@@ -48,10 +48,35 @@ final class MockURLProtocol: URLProtocol {
   override func stopLoading() {}
 }
 
-func makeTestSession() -> URLSession {
+func makeTestSession(taskObserver: TaskCompletionObserver? = nil) -> URLSession {
   let configuration = URLSessionConfiguration.ephemeral
   configuration.protocolClasses = [MockURLProtocol.self]
-  return URLSession(configuration: configuration)
+  return URLSession(configuration: configuration, delegate: taskObserver, delegateQueue: nil)
+}
+
+// Signals once URLSession has finished a task, which is the earliest point at which
+// cancelling the calling task can no longer surface as `URLError.cancelled`. The async
+// `data(for:)` API consumes `didCompleteWithError` itself and only forwards the metrics
+// callback to the session delegate, so that is the completion signal observed here.
+final class TaskCompletionObserver: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+  private let completed = DispatchSemaphore(value: 0)
+
+  func urlSession(
+    _ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics
+  ) {
+    completed.signal()
+  }
+
+  func waitUntilTaskCompleted(timeout: DispatchTimeInterval = .seconds(5)) throws {
+    guard completed.wait(timeout: .now() + timeout) == .success else {
+      throw TestSynchronizationTimeout(stage: "URLSession task completion")
+    }
+  }
+}
+
+struct TestSynchronizationTimeout: Error, CustomStringConvertible {
+  let stage: String
+  var description: String { "timed out waiting for \(stage)" }
 }
 
 func makeHTTPResponse(for request: URLRequest, statusCode: Int) -> HTTPURLResponse {

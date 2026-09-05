@@ -87,7 +87,8 @@ thread. `@concurrent` keeps that CPU work on the global executor, while the
 public domain methods that call into `request` keep SE-0461's caller-isolated
 semantics. The `@concurrent` bodies never read `self.config`: the library
 target compiles in Swift 5 mode, so an off-actor read there would race
-`setToken`/`clearToken` without a compiler diagnostic. The delegate crosses the
+`setToken`/`clearToken` without a compiler diagnostic, which is why
+`scripts/check-transport-isolation.sh` enforces that shape in `make verify`. The delegate crosses the
 hop as a weak reference, so an in-flight request never extends its lifetime;
 swapping the delegate mid-request still delivers that request's failure to the
 delegate that was set when it started. Delegate callbacks arrive off the

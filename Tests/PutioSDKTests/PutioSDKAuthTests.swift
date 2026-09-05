@@ -355,24 +355,23 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertEqual(delegate.errors.map(\.statusCode), [500])
   }
 
-  func testAwaitDeviceCodeAuthorizationStopsWhenCancelled() async throws {
+  // Cancellation during the sleep between polls: the poll completes first (observed via
+  // URLSession task completion), the host gets time to enter its 60s sleep, and the
+  // elapsed bound proves the sleep itself was interrupted rather than waited out.
+  func testAwaitDeviceCodeAuthorizationStopsWhenCancelledDuringSleep() async throws {
     let counter = PollCounter()
     try installMockRequestHandler { request in
       _ = counter.increment()
       return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
     }
+    let observer = TaskCompletionObserver()
+    let host = DeviceCodePollingHost(urlSession: makeTestSession(taskObserver: observer))
 
-    let sdk = PutioSDK(
-      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
-      urlSession: makeTestSession()
-    )
-
-    let task = Task {
-      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(60))
-    }
-    while counter.value == 0 {
-      await Task.yield()
-    }
+    let clock = ContinuousClock()
+    let start = clock.now
+    let task = Task { try await host.poll(code: "PENDING", pollInterval: .seconds(60)) }
+    try observer.waitUntilTaskCompleted()
+    try await Task.sleep(for: .milliseconds(200))
     task.cancel()
 
     do {
@@ -381,34 +380,70 @@ final class PutioSDKAuthTests: XCTestCase {
     } catch is CancellationError {
     }
     XCTAssertEqual(counter.value, 1)
+    XCTAssertLessThan(clock.now - start, .seconds(5), "cancellation must interrupt the sleep")
   }
 
-  func testAwaitDeviceCodeAuthorizationDiscardsResultWhenCancelledMidPoll() async throws {
-    // The handler is installed before the polling task exists, and it looks the task up
-    // through a box, so the first request can never race a missing handler.
-    let pollingTask = TaskBox<PutioDeviceCodeAuthorization>()
+  // Cancellation after a poll has produced a result: the host actor is held busy while
+  // the request completes, so the resumption carrying `.authorized` stays queued behind
+  // the hold. Cancelling before releasing the hold guarantees the post-poll check runs
+  // on a cancelled task with a result already in hand. Removing that check would return
+  // `.authorized` here.
+  func testAwaitDeviceCodeAuthorizationDiscardsResultWhenCancelledAfterPollCompletes()
+    async throws
+  {
+    let gate = PollGate()
     try installMockRequestHandler { request in
-      // Cancel while the poll is producing a success, so the result is already in hand
-      // when the method reaches its post-poll cancellation check.
-      pollingTask.cancel()
+      gate.markRequestStarted()
+      try gate.waitUntilReleased()
       return (
         makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":"tv-token"}"#.utf8)
       )
     }
+    let observer = TaskCompletionObserver()
+    let host = DeviceCodePollingHost(urlSession: makeTestSession(taskObserver: observer))
 
-    let sdk = PutioSDK(
-      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
-      urlSession: makeTestSession()
-    )
-    let task = pollingTask.start {
-      try await sdk.awaitDeviceCodeAuthorization(code: "READY", pollInterval: .seconds(60))
-    }
+    let task = Task { try await host.poll(code: "READY", pollInterval: .seconds(60)) }
+    try gate.waitUntilRequestStarted()
+
+    let hold = ActorHold()
+    Task { await host.hold(hold) }
+    try hold.waitUntilHeld()
+
+    gate.release()
+    try observer.waitUntilTaskCompleted()
+    task.cancel()
+    hold.release()
 
     do {
       let authorization = try await task.value
       XCTFail("Expected cancellation to win over \(authorization)")
     } catch is CancellationError {
     }
+  }
+
+  // A non-expiry failure reaches the delegate from the transport's global executor,
+  // not on the caller's actor.
+  @MainActor
+  func testAwaitDeviceCodeAuthorizationForwardsFailuresOffTheCallerActor() async throws {
+    try installMockRequestHandler { request in
+      (makeHTTPResponse(for: request, statusCode: 500), Data(#"{"status":"ERROR"}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let delegate = RecordingDelegate()
+    sdk.delegate = delegate
+
+    do {
+      _ = try await sdk.awaitDeviceCodeAuthorization(code: "BROKEN", pollInterval: .milliseconds(5))
+      XCTFail("Expected a server failure to propagate")
+    } catch let error as PutioSDKError {
+      XCTAssertEqual(error.statusCode, 500)
+    }
+    XCTAssertEqual(delegate.errors.map(\.statusCode), [500])
+    XCTAssertEqual(delegate.callbacksOnMainThread, [false])
   }
 
   func testAuthModelsDecodeGracefulDefaults() throws {
@@ -454,6 +489,7 @@ private final class PollCounter: @unchecked Sendable {
 private final class RecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
   private let lock = NSLock()
   private var recorded: [PutioSDKError] = []
+  private var mainThreadFlags: [Bool] = []
 
   var errors: [PutioSDKError] {
     lock.lock()
@@ -461,33 +497,78 @@ private final class RecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
     return recorded
   }
 
+  var callbacksOnMainThread: [Bool] {
+    lock.lock()
+    defer { lock.unlock() }
+    return mainThreadFlags
+  }
+
   func onPutioSDKError(error: PutioSDKError) {
     lock.lock()
     recorded.append(error)
+    mainThreadFlags.append(Thread.isMainThread)
     lock.unlock()
   }
 }
 
-private final class TaskBox<Success: Sendable>: @unchecked Sendable {
-  private let lock = NSLock()
-  private var task: Task<Success, Error>?
-  private var cancelRequested = false
+// Owns the SDK on an actor so `awaitDeviceCodeAuthorization` (caller-isolated under
+// NonisolatedNonsendingByDefault) resumes here after each poll; `hold` keeps the actor
+// busy so that resumption stays queued until the test releases it.
+private actor DeviceCodePollingHost {
+  private let sdk: PutioSDK
 
-  func start(_ operation: @escaping @Sendable () async throws -> Success) -> Task<Success, Error> {
-    lock.lock()
-    defer { lock.unlock() }
-    let task = Task(operation: operation)
-    self.task = task
-    if cancelRequested {
-      task.cancel()
+  init(urlSession: URLSession) {
+    sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: urlSession)
+  }
+
+  func poll(code: String, pollInterval: Duration) async throws -> PutioDeviceCodeAuthorization {
+    try await sdk.awaitDeviceCodeAuthorization(code: code, pollInterval: pollInterval)
+  }
+
+  func hold(_ hold: ActorHold) {
+    hold.markHeld()
+    hold.waitUntilReleased()
+  }
+}
+
+private final class ActorHold: @unchecked Sendable {
+  private let held = DispatchSemaphore(value: 0)
+  private let released = DispatchSemaphore(value: 0)
+
+  func markHeld() { held.signal() }
+
+  func waitUntilHeld() throws {
+    guard held.wait(timeout: .now() + .seconds(5)) == .success else {
+      throw TestSynchronizationTimeout(stage: "actor hold")
     }
-    return task
   }
 
-  func cancel() {
-    lock.lock()
-    defer { lock.unlock() }
-    cancelRequested = true
-    task?.cancel()
+  func waitUntilReleased() {
+    _ = released.wait(timeout: .now() + .seconds(5))
   }
+
+  func release() { released.signal() }
+}
+
+private final class PollGate: @unchecked Sendable {
+  private let started = DispatchSemaphore(value: 0)
+  private let released = DispatchSemaphore(value: 0)
+
+  func markRequestStarted() { started.signal() }
+
+  func waitUntilRequestStarted() throws {
+    guard started.wait(timeout: .now() + .seconds(5)) == .success else {
+      throw TestSynchronizationTimeout(stage: "poll request start")
+    }
+  }
+
+  func waitUntilReleased() throws {
+    guard released.wait(timeout: .now() + .seconds(5)) == .success else {
+      throw TestSynchronizationTimeout(stage: "poll release")
+    }
+  }
+
+  func release() { released.signal() }
 }
