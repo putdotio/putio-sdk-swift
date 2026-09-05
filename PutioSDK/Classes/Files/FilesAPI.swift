@@ -106,27 +106,13 @@ public struct PutioFilesListResult {
 }
 
 // Shared by `/files/list` and `/files/list/continue`; the continuation response may
-// omit `parent` and `total`, so both stay optional here.
+// omit `parent` and `total`, so both stay optional here. `files` stays required so a
+// malformed 2xx payload surfaces as a decoding failure instead of an empty page.
 private struct PutioFilesListEnvelope: Decodable {
   let parent: PutioFile?
   let files: [PutioFile]
   let cursor: String?
   let total: Int?
-
-  enum CodingKeys: String, CodingKey {
-    case parent
-    case files
-    case cursor
-    case total
-  }
-
-  init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    parent = try container.decodeIfPresent(PutioFile.self, forKey: .parent)
-    files = try container.decodeIfPresent([PutioFile].self, forKey: .files) ?? []
-    cursor = try container.decodeIfPresent(String.self, forKey: .cursor)
-    total = try container.decodeIfPresent(Int.self, forKey: .total)
-  }
 }
 
 private struct PutioFileEnvelope: Decodable {
