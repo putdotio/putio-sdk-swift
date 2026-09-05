@@ -33,7 +33,9 @@ public final class PutioSDK {
   // global executor. `config` and `delegate` are plain stored properties mutated by
   // `setToken`/`clearToken` and consumers on the owning actor; reading them inside the
   // `@concurrent` body below would race those writes (see #52), and the library target
-  // compiles in Swift 5 mode, so the compiler would not catch it.
+  // compiles in Swift 5 mode, so the compiler would not catch it. The delegate crosses
+  // the hop as a weak reference so an in-flight request never extends its lifetime;
+  // a delegate swapped mid-request still receives that request's failure if it is alive.
   func request<T: Decodable>(
     _ url: String,
     method: PutioHTTPMethod = .get,
@@ -51,7 +53,8 @@ public final class PutioSDK {
       query: query,
       body: body
     )
-    return try await perform(requestConfig: requestConfig, delegate: delegate, as: type)
+    return try await perform(
+      requestConfig: requestConfig, delegate: PutioSDKDelegateReference(delegate), as: type)
   }
 
   // Runs off the caller's actor (see docs/ARCHITECTURE.md#swift-concurrency-posture):
@@ -63,7 +66,7 @@ public final class PutioSDK {
   @concurrent
   private func perform<T: Decodable>(
     requestConfig: PutioSDKRequestConfig,
-    delegate: PutioSDKDelegate?,
+    delegate: PutioSDKDelegateReference,
     as type: T.Type
   ) async throws -> sending T {
     let data = try await execute(requestConfig: requestConfig, delegate: delegate)
@@ -74,7 +77,7 @@ public final class PutioSDK {
       let apiError = PutioSDKError(
         request: PutioSDKErrorRequestInformation(config: requestConfig), decodingError: error,
         responseBody: String(decoding: data, as: UTF8.self))
-      delegate?.onPutioSDKError(error: apiError)
+      delegate.notify(apiError)
       throw apiError
     }
   }
@@ -82,7 +85,7 @@ public final class PutioSDK {
   // Stays off the caller's actor for the same reason as `request` above: keeps the
   // network round trip and error-envelope decode/delegate callback on the global executor.
   @concurrent
-  private func execute(requestConfig: PutioSDKRequestConfig, delegate: PutioSDKDelegate?)
+  private func execute(requestConfig: PutioSDKRequestConfig, delegate: PutioSDKDelegateReference)
     async throws -> Data
   {
     let requestInformation = PutioSDKErrorRequestInformation(config: requestConfig)
@@ -95,14 +98,14 @@ public final class PutioSDK {
       (data, response) = try await urlSession.data(for: urlRequest)
     } catch {
       let apiError = PutioSDKError(request: requestInformation, error: error)
-      delegate?.onPutioSDKError(error: apiError)
+      delegate.notify(apiError)
       throw apiError
     }
 
     guard let httpResponse = response as? HTTPURLResponse else {
       let apiError = PutioSDKError(
         request: requestInformation, unknownError: URLError(.badServerResponse))
-      delegate?.onPutioSDKError(error: apiError)
+      delegate.notify(apiError)
       throw apiError
     }
 
@@ -118,7 +121,7 @@ public final class PutioSDK {
         underlyingError: URLError(.badServerResponse),
         responseBody: body
       )
-      delegate?.onPutioSDKError(error: apiError)
+      delegate.notify(apiError)
       throw apiError
     }
 
@@ -150,5 +153,20 @@ public final class PutioSDK {
     }
 
     return request
+  }
+}
+
+// Carries the delegate across the executor hop without retaining it. Created on the
+// caller's actor and only read afterwards, so the weak load is the sole cross-thread
+// access and the Swift runtime performs it atomically.
+final class PutioSDKDelegateReference {
+  private weak var delegate: PutioSDKDelegate?
+
+  init(_ delegate: PutioSDKDelegate?) {
+    self.delegate = delegate
+  }
+
+  func notify(_ error: PutioSDKError) {
+    delegate?.onPutioSDKError(error: error)
   }
 }

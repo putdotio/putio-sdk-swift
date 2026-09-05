@@ -66,34 +66,41 @@ final class PutioSDKTransportTests: XCTestCase {
     XCTAssertTrue(account.settings.historyEnabled)
   }
 
-  // Regression for #52: the request must carry the config snapshot taken on the
-  // caller's actor, so a token cleared while the request is in flight cannot leak
-  // into the request that already started.
-  func testInFlightRequestKeepsConfigSnapshotWhenTokenIsClearedConcurrently() async throws {
+  // Companion to #52: the delegate crosses the executor hop as a weak reference, so a
+  // delegate released while a request is in flight is neither kept alive nor called.
+  // The config snapshot itself has no deterministic unit proof: the mock transport only
+  // observes a request after the SDK has already read `config`, so an ordering test
+  // cannot distinguish the on-actor snapshot from the old off-actor read.
+  func testInFlightRequestDoesNotRetainReleasedDelegate() async throws {
     try skipUnlessURLProtocolMockingIsSupported()
     let gate = RequestGate()
     MockURLProtocol.requestHandler = { request in
-      gate.recordAuthorization(request.value(forHTTPHeaderField: "Authorization"))
-      gate.waitUntilReleased()
-      return (
-        makeHTTPResponse(for: request, statusCode: 200),
-        Data(#"{"status":"OK"}"#.utf8)
-      )
+      gate.markRequestStarted()
+      try gate.waitUntilReleased()
+      return (makeHTTPResponse(for: request, statusCode: 500), Data(#"{"status":"ERROR"}"#.utf8))
     }
 
     let sdk = PutioSDK(
-      config: PutioSDKConfig(clientID: "ios-app", token: "first-token"),
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
       urlSession: makeTestSession()
     )
+    var delegate: RecordingDelegate? = RecordingDelegate()
+    weak var weakDelegate = delegate
+    sdk.delegate = delegate
 
     async let response = sdk.logout()
-    gate.waitUntilRequestStarted()
-    sdk.clearToken()
+    try gate.waitUntilRequestStarted()
+    delegate = nil
+    XCTAssertNil(weakDelegate, "in-flight request must not retain the delegate")
     gate.release()
 
-    _ = try await response
-    XCTAssertEqual(gate.authorization, "token first-token")
-    XCTAssertEqual(sdk.config.token, "")
+    do {
+      _ = try await response
+      XCTFail("Expected HTTP 500 to surface as an error")
+    } catch let error as PutioSDKError {
+      XCTAssertEqual(error.statusCode, 500)
+    }
+    XCTAssertNil(sdk.delegate)
   }
 
   func testGetFileSurfacesTypedHttpErrors() async throws {
@@ -265,31 +272,34 @@ final class PutioSDKTransportTests: XCTestCase {
 private final class RequestGate: @unchecked Sendable {
   private let started = DispatchSemaphore(value: 0)
   private let released = DispatchSemaphore(value: 0)
-  private let lock = NSLock()
-  private var recordedAuthorization: String?
+  private let timeout: DispatchTimeInterval = .seconds(5)
 
-  var authorization: String? {
-    lock.lock()
-    defer { lock.unlock() }
-    return recordedAuthorization
-  }
-
-  func recordAuthorization(_ value: String?) {
-    lock.lock()
-    recordedAuthorization = value
-    lock.unlock()
+  func markRequestStarted() {
     started.signal()
   }
 
-  func waitUntilRequestStarted() {
-    started.wait()
+  func waitUntilRequestStarted() throws {
+    guard started.wait(timeout: .now() + timeout) == .success else {
+      throw RequestGateTimeout(stage: "request start")
+    }
   }
 
-  func waitUntilReleased() {
-    released.wait()
+  func waitUntilReleased() throws {
+    guard released.wait(timeout: .now() + timeout) == .success else {
+      throw RequestGateTimeout(stage: "release")
+    }
   }
 
   func release() {
     released.signal()
   }
+}
+
+private struct RequestGateTimeout: Error, CustomStringConvertible {
+  let stage: String
+  var description: String { "RequestGate timed out waiting for \(stage)" }
+}
+
+private final class RecordingDelegate: PutioSDKDelegate {
+  func onPutioSDKError(error: PutioSDKError) {}
 }

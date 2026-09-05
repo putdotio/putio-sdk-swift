@@ -87,8 +87,11 @@ thread. `@concurrent` keeps that CPU work on the global executor, while the
 public domain methods that call into `request` keep SE-0461's caller-isolated
 semantics. The `@concurrent` bodies never read `self.config`: the library
 target compiles in Swift 5 mode, so an off-actor read there would race
-`setToken`/`clearToken` without a compiler diagnostic. Delegate callbacks
-arrive off the caller's actor, never inline on it.
+`setToken`/`clearToken` without a compiler diagnostic. The delegate crosses the
+hop as a weak reference, so an in-flight request never extends its lifetime;
+swapping the delegate mid-request still delivers that request's failure to the
+delegate that was set when it started. Delegate callbacks arrive off the
+caller's actor, never inline on it.
 
 `PutioSDKStrictConcurrencyTests` is a Swift 6 consumer target. It compile-checks
 all SDK domains from `@MainActor`, proves an actor-owned client, and requires the
