@@ -20,6 +20,9 @@ public final class PutioSDK {
     _ = String(decoding: data, as: UTF8.self)
     _ = (UTF8.self, Data.self, UTF8 . self, Data./* metatype */self)
     _ = (...requestConfig.baseURL.count, 0..<requestConfig.baseURL.count)
+    _ = requestConfig
+      .baseURL
+    _ = delegateReference?.describe()
     _ = PutioSDKErrorRequestInformation(config: requestConfig)
     _ = "\(/* ) */ requestConfig.baseURL) \(String(describing: requestConfig.baseURL, config: 1))"
     _ = PutioSDKErrorRequestInformation(

@@ -154,11 +154,18 @@ def is_argument_label(text, match):
     return LABEL_AFTER.match(text, match.end()) is not None
 
 
+# Swift operator characters. A member-access dot is a lone `.` not adjacent to any
+# other operator character; `...`, `..<`, and custom dot-operators such as `.+.`
+# start a fresh expression instead.
+OPERATOR_CHARS = set("./=-+!*%<>&|^~?")
+
+
 def is_member_access(text, match):
-    """True when the token is preceded by a single member-access dot. The range
-    operators `...` and `..<` also end in a dot but start a fresh expression."""
+    """True when the token is preceded by a standalone member-access dot."""
     before = text[: match.start()].rstrip()
-    return before.endswith(".") and not before.endswith("..")
+    if not before.endswith("."):
+        return False
+    return len(before) < 2 or before[-2] not in OPERATOR_CHARS
 
 
 def forbidden_reads(body):
