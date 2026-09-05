@@ -28,6 +28,10 @@ public final class PutioSDK {
     _ = [requestConfig].map(\.config)
     _ = requestConfig[config: 1]
     _ = requestConfig.update(config:delegate:)
+    let field: PutioField = .config
+    let other: PutioField = (.delegate)
+    describe(.config, then: .delegate)
+    _ = (field, other)
     _ = PutioSDKErrorRequestInformation(config: requestConfig)
     _ = "\(/* ) */ requestConfig.baseURL) \(String(describing: requestConfig.baseURL, config: 1))"
     _ = PutioSDKErrorRequestInformation(

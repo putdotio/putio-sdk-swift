@@ -147,14 +147,30 @@ def line_of(text, offset):
     return text.count("\n", 0, offset) + 1
 
 
+# Keywords that can precede an expression but never act as a call, subscript, or
+# member-access receiver.
+NON_RECEIVER_KEYWORDS = {
+    "as", "await", "case", "default", "else", "for", "guard", "if", "in", "inout",
+    "is", "let", "repeat", "return", "some", "any", "switch", "then", "throw",
+    "throws", "try", "var", "where", "while", "yield",
+}
+TRAILING_WORD = re.compile(r"([A-Za-z_]\w*)$")
+
+
 def has_receiver(text, end):
-    """True when `text[:end]` ends in something that can receive a call or
-    subscript: an identifier or literal character, a closing bracket, a backtick,
-    or a `?`/`!` postfix on one of those."""
+    """True when `text[:end]` ends in something that can receive a call, subscript,
+    or member access: an identifier or literal character, a closing bracket, a
+    backtick, or a `?`/`!` postfix on one of those. Statement keywords such as
+    `return` are not receivers."""
     receiver = text[:end].rstrip()
     if receiver.endswith(("?", "!")):
         receiver = receiver[:-1].rstrip()
-    return bool(receiver) and (receiver[-1].isalnum() or receiver[-1] in "_)]`\"")
+    if not receiver:
+        return False
+    word = TRAILING_WORD.search(receiver)
+    if word and word.group(1) in NON_RECEIVER_KEYWORDS:
+        return False
+    return receiver[-1].isalnum() or receiver[-1] in "_)]`\""
 
 
 def enclosing_open_bracket(text, position):
@@ -201,6 +217,13 @@ def is_member_access(text, match):
         return False
     # A key path with an inferred root (`\.config`) names a member, not SDK state.
     if before[:-1].rstrip().endswith("\\"):
+        return True
+    # An implicit member expression (`= .config`, `f(.delegate)`) resolves against
+    # the contextual type, never against the SDK instance. The dot must directly
+    # follow whitespace or an opening token; anything else (`...`, `.+.`) is an
+    # operator.
+    previous = before[-2] if len(before) >= 2 else None
+    if previous is None or previous.isspace() or previous in "=(,:[{":
         return True
     return has_receiver(before, len(before) - 1)
 
