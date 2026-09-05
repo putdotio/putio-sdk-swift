@@ -10,10 +10,12 @@ Rules (see docs/ARCHITECTURE.md, "Internal transport isolation"):
     `delegate`. Only argument-label positions (`f(config: x)`, `f(config y: x)`)
     are exempt; ternary operands and other expressions are not.
 
-Comments and string literal text (including multi-line and raw strings) are
-blanked before parsing so they cannot hide or fake a match. Interpolation
-expressions are executable Swift and are lexed with the same rules, including
-comments and nested strings inside them.
+Comments, string literal text (including multi-line and raw strings), and
+extended regex literals (`#/.../#`) are blanked before parsing so they cannot
+hide or fake a match. Interpolation expressions are executable Swift and are
+lexed with the same rules, including comments and nested strings inside them.
+Bare `/regex/` literals are not handled: the library target compiles in Swift 5
+mode without `BareSlashRegexLiterals`, so they cannot appear in this file.
 """
 
 import re
@@ -22,7 +24,7 @@ from pathlib import Path
 
 REQUIRED_CONCURRENT = {"perform", "execute"}
 FORBIDDEN_CONCURRENT = {"request"}
-SELF_MEMBER = re.compile(r"(?<![.\w])self\s*\.")
+SELF_MEMBER = re.compile(r"(?<![.\w])self\s*[?!]?\s*\.")
 STATE_IDENT = re.compile(r"(?<![.\w])(config|delegate)\b")
 LABEL_AFTER = re.compile(r"\s*(?:[A-Za-z_]\w*\s*)?:(?!:)")
 FUNC_DECL = re.compile(r"\bfunc\s+([A-Za-z_]\w*)")
@@ -64,6 +66,9 @@ def lex(source, i, out, until_close_paren=False):
             if k < n and source[k] == '"':
                 i = scan_string(source, k, hashes, out)
                 continue
+            if hashes and k < n and source[k] == "/":
+                i = scan_regex(source, k, hashes, out)
+                continue
         ch = source[i]
         out.append(ch)
         i += 1
@@ -102,6 +107,20 @@ def scan_string(source, start, hashes, out):
         out.append(blank(source[j]))
         j += 1
     return n
+
+
+def scan_regex(source, start, hashes, out):
+    """Blank an extended regex literal opening at `start` (the slash) and return the
+    index past its `/` + hashes terminator."""
+    n = len(source)
+    closing = "/" + "#" * hashes
+    out.append("/")
+    j = start + 1
+    while j < n and not source.startswith(closing, j):
+        out.append(blank(source[j]))
+        j += 1
+    out.append("/")
+    return min(n, j + len(closing))
 
 
 def strip_comments_and_strings(source):

@@ -22,7 +22,11 @@ public final class PutioSDK {
     _ = "\(/* ) */ requestConfig.baseURL) \(String(describing: requestConfig.baseURL, config: 1))"
     _ = PutioSDKErrorRequestInformation(
       config: requestConfig)
-    _ = (sentinel, block, nested)
+    let opener = #/{ config delegate self./#
+    let multiline = ##/
+      { self.config } "delegate"
+      /##
+    _ = (sentinel, block, nested, opener, multiline)
     return try JSONDecoder().decode(type, from: data)
   }
 

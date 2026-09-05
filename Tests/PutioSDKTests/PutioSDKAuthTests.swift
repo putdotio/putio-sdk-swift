@@ -393,6 +393,50 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertLessThan(clock.now - start, .seconds(5), "cancellation must interrupt the sleep")
   }
 
+  // Same contract against the production sleeper. The observer parks at `.willSleep`,
+  // is released, and the SDK enters the real `Task.sleep` for a short interval before
+  // the test cancels. An uncancellable production sleeper would wait out the whole
+  // interval and trip the elapsed bound; a cancellable one returns almost immediately.
+  func testAwaitDeviceCodeAuthorizationProductionSleepIsInterruptedByCancellation()
+    async throws
+  {
+    let counter = PollCounter()
+    try installMockRequestHandler { request in
+      _ = counter.increment()
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let barrier = PollBarrier()
+    sdk.deviceCodePollObserver = { event in
+      if event == .willSleep { await barrier.park() }
+    }
+
+    let interval = Duration.seconds(3)
+    let clock = ContinuousClock()
+    let task = Task {
+      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: interval)
+    }
+    await barrier.waitUntilParked()
+    let sleepStarted = clock.now
+    await barrier.release()
+    // Give the SDK time to resume from the observer and suspend inside `Task.sleep`.
+    try await Task.sleep(for: .milliseconds(250))
+    task.cancel()
+
+    do {
+      _ = try await task.value
+      XCTFail("Expected cancellation to propagate")
+    } catch is CancellationError {
+    }
+    XCTAssertEqual(counter.value, 1)
+    XCTAssertLessThan(
+      clock.now - sleepStarted, interval, "production sleep must not run to completion")
+  }
+
   // Cancellation after a poll has produced a result. The SDK parks at `.pollCompleted`
   // with `.authorized` already in hand; cancelling there and releasing proves the
   // post-poll cancellation check wins. Removing that check returns `.authorized` here.
