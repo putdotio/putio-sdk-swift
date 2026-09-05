@@ -29,12 +29,11 @@ public final class PutioSDK {
     self.config.token = ""
   }
 
-  // Runs off the caller's actor (see docs/ARCHITECTURE.md#swift-concurrency-posture):
-  // `NonisolatedNonsendingByDefault` would otherwise inherit the caller's isolation for
-  // this async body, forcing JSON encode/decode and delegate callbacks onto a `@MainActor`
-  // consumer's main thread. `@concurrent` keeps that work on the global executor, matching
-  // pre-PR behavior, while the public domain methods that call into this stay caller-isolated.
-  @concurrent
+  // Snapshots the mutable client state on the caller's actor before hopping to the
+  // global executor. `config` and `delegate` are plain stored properties mutated by
+  // `setToken`/`clearToken` and consumers on the owning actor; reading them inside the
+  // `@concurrent` body below would race those writes (see #52), and the library target
+  // compiles in Swift 5 mode, so the compiler would not catch it.
   func request<T: Decodable>(
     _ url: String,
     method: PutioHTTPMethod = .get,
@@ -52,7 +51,22 @@ public final class PutioSDK {
       query: query,
       body: body
     )
-    let data = try await execute(requestConfig: requestConfig)
+    return try await perform(requestConfig: requestConfig, delegate: delegate, as: type)
+  }
+
+  // Runs off the caller's actor (see docs/ARCHITECTURE.md#swift-concurrency-posture):
+  // `NonisolatedNonsendingByDefault` would otherwise inherit the caller's isolation for
+  // this async body, forcing JSON encode/decode and delegate callbacks onto a `@MainActor`
+  // consumer's main thread. `@concurrent` keeps that work on the global executor while the
+  // public domain methods that call into `request` stay caller-isolated. Only the value
+  // snapshot taken in `request` crosses the hop; `self.config` is never read here.
+  @concurrent
+  private func perform<T: Decodable>(
+    requestConfig: PutioSDKRequestConfig,
+    delegate: PutioSDKDelegate?,
+    as type: T.Type
+  ) async throws -> sending T {
+    let data = try await execute(requestConfig: requestConfig, delegate: delegate)
 
     do {
       return try JSONDecoder().decode(type, from: data)
@@ -68,7 +82,9 @@ public final class PutioSDK {
   // Stays off the caller's actor for the same reason as `request` above: keeps the
   // network round trip and error-envelope decode/delegate callback on the global executor.
   @concurrent
-  private func execute(requestConfig: PutioSDKRequestConfig) async throws -> Data {
+  private func execute(requestConfig: PutioSDKRequestConfig, delegate: PutioSDKDelegate?)
+    async throws -> Data
+  {
     let requestInformation = PutioSDKErrorRequestInformation(config: requestConfig)
     let urlRequest = try buildURLRequest(from: requestConfig)
 

@@ -76,16 +76,19 @@ with an immutable scoped API requires a deliberate major release.
 
 ### Internal transport isolation
 
-`PutioSDK.request` and its private `execute` helper (`PutioSDK/Classes/PutioSDK.swift`)
-are marked `@concurrent`. Without that attribute, `NonisolatedNonsendingByDefault`
-would make the shared transport inherit the caller's isolation like any other
-async SDK method, which would run `JSONDecoder`/`JSONEncoder` work and
+`PutioSDK.request` (`PutioSDK/Classes/PutioSDK.swift`) runs on the caller's
+actor and snapshots the mutable `config` and `delegate` into values before
+handing off to the private `@concurrent` `perform`/`execute` helpers. Without
+that attribute, `NonisolatedNonsendingByDefault` would make the shared
+transport inherit the caller's isolation like any other async SDK method, which
+would run `JSONDecoder`/`JSONEncoder` work and
 `PutioSDKDelegate.onPutioSDKError` callbacks on a `@MainActor` consumer's main
-thread. `@concurrent` keeps that CPU work on the global executor instead,
-matching the SDK's pre-PR behavior, while the public domain methods that call
-into `request` keep SE-0461's caller-isolated semantics. The delegate-callback
-isolation contract is unchanged by this PR: callbacks arrive off the caller's
-actor, never inline on it.
+thread. `@concurrent` keeps that CPU work on the global executor, while the
+public domain methods that call into `request` keep SE-0461's caller-isolated
+semantics. The `@concurrent` bodies never read `self.config`: the library
+target compiles in Swift 5 mode, so an off-actor read there would race
+`setToken`/`clearToken` without a compiler diagnostic. Delegate callbacks
+arrive off the caller's actor, never inline on it.
 
 `PutioSDKStrictConcurrencyTests` is a Swift 6 consumer target. It compile-checks
 all SDK domains from `@MainActor`, proves an actor-owned client, and requires the

@@ -66,6 +66,36 @@ final class PutioSDKTransportTests: XCTestCase {
     XCTAssertTrue(account.settings.historyEnabled)
   }
 
+  // Regression for #52: the request must carry the config snapshot taken on the
+  // caller's actor, so a token cleared while the request is in flight cannot leak
+  // into the request that already started.
+  func testInFlightRequestKeepsConfigSnapshotWhenTokenIsClearedConcurrently() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    let gate = RequestGate()
+    MockURLProtocol.requestHandler = { request in
+      gate.recordAuthorization(request.value(forHTTPHeaderField: "Authorization"))
+      gate.waitUntilReleased()
+      return (
+        makeHTTPResponse(for: request, statusCode: 200),
+        Data(#"{"status":"OK"}"#.utf8)
+      )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "first-token"),
+      urlSession: makeTestSession()
+    )
+
+    async let response = sdk.logout()
+    gate.waitUntilRequestStarted()
+    sdk.clearToken()
+    gate.release()
+
+    _ = try await response
+    XCTAssertEqual(gate.authorization, "token first-token")
+    XCTAssertEqual(sdk.config.token, "")
+  }
+
   func testGetFileSurfacesTypedHttpErrors() async throws {
     MockURLProtocol.requestHandler = { request in
       let payload = """
@@ -229,5 +259,37 @@ final class PutioSDKTransportTests: XCTestCase {
     )
 
     XCTAssertEqual(response.status, "OK")
+  }
+}
+
+private final class RequestGate: @unchecked Sendable {
+  private let started = DispatchSemaphore(value: 0)
+  private let released = DispatchSemaphore(value: 0)
+  private let lock = NSLock()
+  private var recordedAuthorization: String?
+
+  var authorization: String? {
+    lock.lock()
+    defer { lock.unlock() }
+    return recordedAuthorization
+  }
+
+  func recordAuthorization(_ value: String?) {
+    lock.lock()
+    recordedAuthorization = value
+    lock.unlock()
+    started.signal()
+  }
+
+  func waitUntilRequestStarted() {
+    started.wait()
+  }
+
+  func waitUntilReleased() {
+    released.wait()
+  }
+
+  func release() {
+    released.signal()
   }
 }
