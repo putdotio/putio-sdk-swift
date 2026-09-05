@@ -1,0 +1,12 @@
+== Devices ==
+-- iOS 26.5 --
+    iPhone 17 Pro (6AD93321-BBE2-48DE-9950-EA497FB1F96E) (Shutdown) 
+    Apple Watch lookalike (11111111-2222-3333-4444-555555555555) (Shutdown) 
+-- tvOS 26.4 --
+    Apple TV 4K (3rd generation) (047FE19B-EEF9-4497-B6E4-53760D7C176C) (Shutdown) 
+    AppleTV-4K-tvOS26 (58638E97-488E-4FEC-9B00-2BE474791722) (Shutdown) 
+-- tvOS 26.5 --
+    Apple TV (2928C038-AC87-42A0-91FC-6C3A64B56BBB) (Shutdown) 
+-- watchOS 26.4 --
+    Apple Watch Series 11 (46mm) (682e79f2-3a18-4072-822b-5f8a3ac46c23) (Booted) 
+    Apple Watch Ultra 3 (49mm) (92BD987C-818F-4C96-9E86-609CC5BCF693) (Shutdown) 

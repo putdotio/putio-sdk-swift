@@ -9,7 +9,7 @@ final class PutioSDKTransportTests: XCTestCase {
   }
 
   func testGetAccountInfoParsesResponseThroughSharedTransport() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.httpMethod, "GET")
       XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token token-123")
       XCTAssertEqual(request.url?.path, "/v2/account/info")
@@ -67,7 +67,7 @@ final class PutioSDKTransportTests: XCTestCase {
   }
 
   func testGetFileSurfacesTypedHttpErrors() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       let payload = """
         {
           "status": "ERROR",
@@ -129,8 +129,7 @@ final class PutioSDKTransportTests: XCTestCase {
   }
 
   func testSaveAccountSettingsPostsJsonAndDecodesOkResponse() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.httpMethod, "POST")
       XCTAssertEqual(request.url?.path, "/v2/account/settings")
       XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
@@ -160,8 +159,7 @@ final class PutioSDKTransportTests: XCTestCase {
   }
 
   func testMoveFilesDecodesStructuredMoveErrors() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.httpMethod, "POST")
       XCTAssertEqual(request.url?.path, "/v2/files/move")
       let body = try XCTUnwrap(requestBodyData(for: request))
@@ -200,8 +198,7 @@ final class PutioSDKTransportTests: XCTestCase {
   }
 
   func testSendIFTTTEventPostsEventPayload() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.httpMethod, "POST")
       XCTAssertEqual(request.url?.path, "/v2/ifttt-client/event")
       let body = try XCTUnwrap(requestBodyData(for: request))

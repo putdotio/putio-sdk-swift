@@ -227,10 +227,9 @@ final class PutioSDKErrorTests: XCTestCase {
   }
 
   func testTransportNotifiesDelegateForNetworkAndDecodingFailures() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     let delegate = DelegateProbe()
 
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       switch request.url?.path {
       case "/v2/account/info":
         throw URLError(.notConnectedToInternet)
@@ -258,7 +257,7 @@ final class PutioSDKErrorTests: XCTestCase {
       }
     }
 
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       switch request.url?.path {
       case "/v2/account/info":
         return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"info":{}}"#.utf8))

@@ -1,0 +1,5 @@
+== Devices ==
+-- iOS 26.5 --
+    iPhone 17 (72F26038-90B1-4B28-95DA-276286749AAF) (Shutdown) 
+-- tvOS 26.5 --
+    Apple TV 4K (3rd generation) (at 1080p) (0E4E6DAD-33E6-46CA-ABAD-DFC1FEE3F9B0) (Shutdown) 

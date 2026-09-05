@@ -83,10 +83,9 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   func testAuthAndTwoFactorEndpointsDecodeTypedResponses() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     var seenPaths: [String] = []
 
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       let path = request.url?.path ?? ""
       seenPaths.append(path)
 
@@ -238,7 +237,7 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   func testCheckAuthCodeMatchReturnsNilWhileCodeIsPending() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/oauth2/oob/code/PENDING")
       XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
       return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))

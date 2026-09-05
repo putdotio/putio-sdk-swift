@@ -9,8 +9,7 @@ final class PutioSDKHistoryTests: XCTestCase {
   }
 
   func testHistoryEndpointsDecodeAllConcreteEventTypes() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       switch request.url?.path {
       case "/v2/events/list":
         let components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)

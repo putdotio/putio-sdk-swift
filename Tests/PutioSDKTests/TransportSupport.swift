@@ -5,11 +5,17 @@ import XCTest
 
 // watchOS proxies URLSession loads out of process and never consults custom
 // URLProtocol classes, so URLProtocol-backed transport tests cannot run there.
-// The pure-logic suites (OAuth state and callback validation, decoding, public
-// surface) still run on watchOS.
-func skipUnlessURLProtocolMockingIsSupported() throws {
+// Installing a mock handler is the only way a test can dispatch through the mock
+// transport, so this single entry point is the suite-level watchOS gate: a test
+// that never installs a handler (OAuth state and callback validation, decoding,
+// URL building) still runs on every platform.
+func installMockRequestHandler(
+  _ handler: @escaping (URLRequest) throws -> (HTTPURLResponse, Data)
+) throws {
   #if os(watchOS)
     throw XCTSkip("watchOS URLSession does not consult custom URLProtocol classes")
+  #else
+    MockURLProtocol.requestHandler = handler
   #endif
 }
 
