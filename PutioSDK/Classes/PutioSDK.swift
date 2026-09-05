@@ -81,7 +81,7 @@ public final class PutioSDK {
   // consumer's main thread. `@concurrent` keeps that work on the global executor while the
   // public domain methods that call into `request` stay caller-isolated. Only the value
   // snapshot taken in `request` crosses the hop; `self.config` is never read here.
-  // scripts/check-transport-isolation.sh rejects `self.` member access and bare
+  // scripts/check-transport-isolation.sh rejects any `self` use and bare
   // `config`/`delegate` reads inside every `@concurrent` body in this file.
   @concurrent
   private func perform<T: Decodable>(

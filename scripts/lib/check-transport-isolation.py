@@ -6,8 +6,8 @@ Rules (see docs/ARCHITECTURE.md, "Internal transport isolation"):
   * `request` must not be `@concurrent`; it snapshots `config`/`delegate` on the
     caller's actor.
   * `perform` and `execute` must both be `@concurrent`.
-  * No `@concurrent` body may use `self.` member access or read `config` or
-    `delegate`. Only argument-label positions (`f(config: x)`, `f(config y: x)`)
+  * No `@concurrent` body may mention `self` (member access, chaining, or a
+    parenthesised receiver) or read `config` or `delegate`. Only argument-label positions (`f(config: x)`, `f(config y: x)`)
     are exempt; ternary operands and other expressions are not.
 
 Comments, string literal text (including multi-line and raw strings), and
@@ -26,7 +26,10 @@ from pathlib import Path
 
 REQUIRED_CONCURRENT = {"perform", "execute"}
 FORBIDDEN_CONCURRENT = {"request"}
-SELF_MEMBER = re.compile(r"(?<![.\w])self\s*[?!]?\s*\.")
+# Any use of the instance itself (member access, optional or forced chaining,
+# parenthesised receiver, passing it along) is off-actor state access. `.self`
+# metatype references are preceded by a dot and stay allowed.
+SELF_TOKEN = re.compile(r"(?<![.\w])self\b")
 STATE_IDENT = re.compile(r"(?<!\w)(config|delegate)\b")
 LABEL_AFTER = re.compile(r"\s*(?:[A-Za-z_]\w*\s*)?:(?!:)")
 FUNC_DECL = re.compile(r"\bfunc\s+([A-Za-z_]\w*)")
@@ -156,7 +159,7 @@ def is_member_access(text, match):
 
 
 def forbidden_reads(body):
-    for match in SELF_MEMBER.finditer(body):
+    for match in SELF_TOKEN.finditer(body):
         yield match.start(), "self"
     for match in STATE_IDENT.finditer(body):
         if is_member_access(body, match) or is_argument_label(body, match):

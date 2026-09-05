@@ -397,9 +397,9 @@ final class PutioSDKAuthTests: XCTestCase {
   // Same contract against the production sleep primitive. The wrapper signals entry
   // synchronously and then calls `PutioSDK.sleepBetweenDeviceCodePolls` with no
   // suspension point in between, so once the test observes entry the SDK task is either
-  // about to enter or already inside the real `Task.sleep`; cancelling there must
-  // interrupt it. A default sleeper that cannot be cancelled waits out the interval and
-  // trips the elapsed bound.
+  // about to enter or already inside the real `Task.sleep`. The bound is on the response
+  // to cancellation, far below the interval, so an uncancellable primitive that waits out
+  // its interval fails regardless of when the test happened to observe entry.
   func testAwaitDeviceCodeAuthorizationProductionSleepIsInterruptedByCancellation()
     async throws
   {
@@ -419,23 +419,85 @@ final class PutioSDKAuthTests: XCTestCase {
       try await PutioSDK.sleepBetweenDeviceCodePolls(interval)
     }
 
-    let interval = Duration.seconds(5)
-    let clock = ContinuousClock()
     let task = Task {
-      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: interval)
+      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(20))
     }
     defer { entry.abandon() }
     try await entry.waitUntilEntered()
-    let entered = clock.now
-    task.cancel()
 
+    let clock = ContinuousClock()
+    let cancelled = clock.now
+    task.cancel()
     do {
       _ = try await task.value
       XCTFail("Expected cancellation to propagate")
     } catch is CancellationError {
     }
     XCTAssertEqual(counter.value, 1)
-    XCTAssertLessThan(clock.now - entered, interval, "production sleep must not run to completion")
+    XCTAssertLessThan(
+      clock.now - cancelled, .seconds(2), "production sleep must respond to cancellation")
+  }
+
+  // The shipped default sleeper, exercised directly: it must be the cancellable
+  // primitive, not a detached or pre-checked stand-in.
+  func testDefaultDeviceCodePollSleeperIsInterruptedByCancellation() async throws {
+    let sdk = PutioSDK(config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"))
+    let sleeper = sdk.deviceCodePollSleeper
+
+    let task = Task { try await sleeper(.seconds(20)) }
+    try await Task.sleep(for: .milliseconds(300))
+
+    let clock = ContinuousClock()
+    let cancelled = clock.now
+    task.cancel()
+    do {
+      try await task.value
+      XCTFail("Expected cancellation to propagate")
+    } catch is CancellationError {
+    }
+    XCTAssertLessThan(
+      clock.now - cancelled, .seconds(2), "default sleeper must respond to cancellation")
+  }
+
+  // The full polling loop with the default sleeper installed. The observer only parks
+  // at `.willSleep` and releases; the interval sleep that follows is the shipped one.
+  func testAwaitDeviceCodeAuthorizationWithDefaultSleeperIsInterruptedByCancellation()
+    async throws
+  {
+    let counter = PollCounter()
+    try installMockRequestHandler { request in
+      _ = counter.increment()
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let barrier = PollBarrier()
+    sdk.deviceCodePollObserver = { event in
+      if event == .willSleep { await barrier.park() }
+    }
+
+    let task = Task {
+      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(20))
+    }
+    defer { Task { await barrier.abandon() } }
+    try await barrier.waitUntilParked()
+    await barrier.release()
+    try await Task.sleep(for: .milliseconds(300))
+
+    let clock = ContinuousClock()
+    let cancelled = clock.now
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("Expected cancellation to propagate")
+    } catch is CancellationError {
+    }
+    XCTAssertEqual(counter.value, 1)
+    XCTAssertLessThan(
+      clock.now - cancelled, .seconds(2), "default polling sleep must respond to cancellation")
   }
 
   // Cancellation after a poll has produced a result. The SDK parks at `.pollCompleted`
