@@ -131,9 +131,14 @@ extension PutioSDK {
   }
 
   public func checkAuthCodeMatch(code: String) async throws -> String? {
+    try await checkAuthCodeMatch(code: code, notifiesDelegate: true)
+  }
+
+  private func checkAuthCodeMatch(code: String, notifiesDelegate: Bool) async throws -> String? {
     let envelope = try await request(
       "/oauth2/oob/code/\(code)",
       headers: ["Authorization": ""],
+      notifiesDelegate: notifiesDelegate,
       as: PutioOAuthTokenEnvelope.self
     )
     return envelope.oauthToken
@@ -144,29 +149,41 @@ extension PutioSDK {
   ///
   /// The backend answers `oauth_token: null` while the code is pending and HTTP 404
   /// once it is unknown or expired, so expiry surfaces as `.expired` instead of a
-  /// raw not-found error. Any other transport or API failure is rethrown unchanged.
+  /// raw not-found error, and that expected 404 is not reported to `delegate`. Any
+  /// other transport or API failure is rethrown unchanged and reaches the delegate
+  /// as usual.
+  ///
   /// Cancelling the calling task surfaces as `CancellationError` at the next
   /// cancellation point: before each poll, after it completes, during the sleep between
   /// polls, or while a poll request is in flight (URLSession reports the latter as
   /// `URLError.cancelled`, which is normalized here). A poll that has already produced
   /// a result when cancellation arrives is discarded in favour of `CancellationError`.
+  ///
+  /// `pollInterval` is clamped to at least one second so a misconfigured or
+  /// nonpositive value cannot hammer the endpoint into rate limiting.
   public func awaitDeviceCodeAuthorization(
     code: String, pollInterval: Duration = .seconds(3)
   ) async throws -> PutioDeviceCodeAuthorization {
+    let interval = max(pollInterval, Self.minimumDeviceCodePollInterval)
+
     while true {
       try Task.checkCancellation()
 
       let authorization: PutioDeviceCodeAuthorization?
       do {
-        if let token = try await checkAuthCodeMatch(code: code) {
+        if let token = try await checkAuthCodeMatch(code: code, notifiesDelegate: false) {
           authorization = .authorized(token: token)
         } else {
           authorization = nil
         }
       } catch let error as PutioSDKError where error.isNotFound {
         authorization = .expired
-      } catch let error as PutioSDKError where Task.isCancelled && error.isNetworkFailure {
-        throw CancellationError()
+      } catch let error as PutioSDKError {
+        if Task.isCancelled {
+          throw CancellationError()
+        }
+        delegate?.onPutioSDKError(error: error)
+        throw error
       }
 
       try Task.checkCancellation()
@@ -174,9 +191,11 @@ extension PutioSDK {
         return authorization
       }
 
-      try await Task.sleep(for: pollInterval)
+      try await Task.sleep(for: interval)
     }
   }
+
+  static let minimumDeviceCodePollInterval: Duration = .seconds(1)
 
   public func validateToken(token: String) async throws -> PutioTokenValidationResult {
     try await request(

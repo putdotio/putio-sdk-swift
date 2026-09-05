@@ -292,10 +292,49 @@ final class PutioSDKAuthTests: XCTestCase {
       urlSession: makeTestSession()
     )
 
+    let delegate = RecordingDelegate()
+    sdk.delegate = delegate
+
     let authorization = try await sdk.awaitDeviceCodeAuthorization(
       code: "STALE", pollInterval: .milliseconds(5))
 
     XCTAssertEqual(authorization, .expired)
+    XCTAssertEqual(delegate.errors.count, 0, "expected expiry must not reach the delegate")
+  }
+
+  func testAwaitDeviceCodeAuthorizationClampsPollIntervalToOneSecond() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    let counter = PollCounter()
+    MockURLProtocol.requestHandler = { request in
+      let attempt = counter.increment()
+      let payload = attempt < 2 ? #"{"oauth_token":null}"# : #"{"oauth_token":"tv-token"}"#
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+
+    let clock = ContinuousClock()
+    let start = clock.now
+    _ = try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .zero)
+
+    XCTAssertGreaterThanOrEqual(clock.now - start, PutioSDK.minimumDeviceCodePollInterval)
+    XCTAssertEqual(counter.value, 2)
+  }
+
+  func testDeviceCodeAuthorizationRedactsTokenFromDescriptions() {
+    let authorization = PutioDeviceCodeAuthorization.authorized(token: "secret-token")
+
+    XCTAssertFalse(authorization.description.contains("secret-token"))
+    XCTAssertFalse(authorization.debugDescription.contains("secret-token"))
+    XCTAssertFalse(String(reflecting: authorization).contains("secret-token"))
+    XCTAssertFalse("\(authorization)".contains("secret-token"))
+    let mirrored = authorization.customMirror.children.map { "\($0.value)" }.joined()
+    XCTAssertFalse(mirrored.contains("secret-token"))
+    XCTAssertEqual(
+      PutioDeviceCodeAuthorization.expired.description, "PutioDeviceCodeAuthorization.expired")
   }
 
   func testAwaitDeviceCodeAuthorizationRethrowsOtherFailures() async throws {
@@ -309,12 +348,16 @@ final class PutioSDKAuthTests: XCTestCase {
       urlSession: makeTestSession()
     )
 
+    let delegate = RecordingDelegate()
+    sdk.delegate = delegate
+
     do {
       _ = try await sdk.awaitDeviceCodeAuthorization(code: "BROKEN", pollInterval: .milliseconds(5))
       XCTFail("Expected a server failure to propagate")
     } catch let error as PutioSDKError {
       XCTAssertEqual(error.statusCode, 500)
     }
+    XCTAssertEqual(delegate.errors.map(\.statusCode), [500])
   }
 
   func testAwaitDeviceCodeAuthorizationStopsWhenCancelled() async throws {
@@ -408,5 +451,22 @@ private final class PollCounter: @unchecked Sendable {
     defer { lock.unlock() }
     count += 1
     return count
+  }
+}
+
+private final class RecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
+  private let lock = NSLock()
+  private var recorded: [PutioSDKError] = []
+
+  var errors: [PutioSDKError] {
+    lock.lock()
+    defer { lock.unlock() }
+    return recorded
+  }
+
+  func onPutioSDKError(error: PutioSDKError) {
+    lock.lock()
+    recorded.append(error)
+    lock.unlock()
   }
 }

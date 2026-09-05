@@ -42,6 +42,7 @@ public final class PutioSDK {
     query: PutioRequestParameters = [:],
     body: PutioRequestParameters = [:],
     apiConfig: PutioSDKConfig? = nil,
+    notifiesDelegate: Bool = true,
     as type: T.Type
   ) async throws -> sending T {
     let requestConfig = PutioSDKRequestConfig(
@@ -52,7 +53,7 @@ public final class PutioSDK {
       query: query,
       body: body
     )
-    let data = try await execute(requestConfig: requestConfig)
+    let data = try await execute(requestConfig: requestConfig, notifiesDelegate: notifiesDelegate)
 
     do {
       return try JSONDecoder().decode(type, from: data)
@@ -60,15 +61,19 @@ public final class PutioSDK {
       let apiError = PutioSDKError(
         request: PutioSDKErrorRequestInformation(config: requestConfig), decodingError: error,
         responseBody: String(decoding: data, as: UTF8.self))
-      delegate?.onPutioSDKError(error: apiError)
+      if notifiesDelegate { delegate?.onPutioSDKError(error: apiError) }
       throw apiError
     }
   }
 
   // Stays off the caller's actor for the same reason as `request` above: keeps the
   // network round trip and error-envelope decode/delegate callback on the global executor.
+  // `notifiesDelegate: false` lets a caller own an expected failure (for example the
+  // device-code 404 that means "expired") without it reaching the global error delegate.
   @concurrent
-  private func execute(requestConfig: PutioSDKRequestConfig) async throws -> Data {
+  private func execute(requestConfig: PutioSDKRequestConfig, notifiesDelegate: Bool) async throws
+    -> Data
+  {
     let requestInformation = PutioSDKErrorRequestInformation(config: requestConfig)
     let urlRequest = try buildURLRequest(from: requestConfig)
 
@@ -79,14 +84,14 @@ public final class PutioSDK {
       (data, response) = try await urlSession.data(for: urlRequest)
     } catch {
       let apiError = PutioSDKError(request: requestInformation, error: error)
-      delegate?.onPutioSDKError(error: apiError)
+      if notifiesDelegate { delegate?.onPutioSDKError(error: apiError) }
       throw apiError
     }
 
     guard let httpResponse = response as? HTTPURLResponse else {
       let apiError = PutioSDKError(
         request: requestInformation, unknownError: URLError(.badServerResponse))
-      delegate?.onPutioSDKError(error: apiError)
+      if notifiesDelegate { delegate?.onPutioSDKError(error: apiError) }
       throw apiError
     }
 
@@ -102,7 +107,7 @@ public final class PutioSDK {
         underlyingError: URLError(.badServerResponse),
         responseBody: body
       )
-      delegate?.onPutioSDKError(error: apiError)
+      if notifiesDelegate { delegate?.onPutioSDKError(error: apiError) }
       throw apiError
     }
 

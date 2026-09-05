@@ -16,9 +16,35 @@ open class PutioAuthCode: Decodable {
   }
 }
 
-public enum PutioDeviceCodeAuthorization: Equatable, Sendable {
+// The authorized token is a bearer credential; descriptions and reflection redact it
+// so a routine log of the result cannot leak it.
+public enum PutioDeviceCodeAuthorization: Equatable, Sendable, CustomStringConvertible,
+  CustomDebugStringConvertible, CustomReflectable
+{
   case authorized(token: String)
   case expired
+
+  public var description: String {
+    switch self {
+    case .authorized:
+      return "PutioDeviceCodeAuthorization.authorized(token: <redacted>)"
+    case .expired:
+      return "PutioDeviceCodeAuthorization.expired"
+    }
+  }
+
+  public var debugDescription: String {
+    description
+  }
+
+  public var customMirror: Mirror {
+    switch self {
+    case .authorized:
+      return Mirror(self, children: ["authorized": ["token": "<redacted>"]], displayStyle: .enum)
+    case .expired:
+      return Mirror(self, children: [:], displayStyle: .enum)
+    }
+  }
 }
 
 open class PutioTokenValidationResult: Decodable {
