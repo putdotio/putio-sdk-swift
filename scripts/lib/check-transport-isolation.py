@@ -167,7 +167,7 @@ def is_member_access(text, match):
         return False
     receiver = before[:-1].rstrip()
     if receiver.endswith(("?", "!")):
-        receiver = receiver[:-1]
+        receiver = receiver[:-1].rstrip()
     return bool(receiver) and (receiver[-1].isalnum() or receiver[-1] in "_)]`\"")
 
 
