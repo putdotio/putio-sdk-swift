@@ -53,6 +53,42 @@ final class PutioSDKLiveTests: XCTestCase {
     try await cleanup(sdk: sdk, fileID: createdID)
   }
 
+  func testFilesListingContinuesThroughCursorAgainstRealAPI() async throws {
+    let sdk = try LiveSupport.newAuthedClient()
+    let folderName = LiveSupport.uniqueName(prefix: "putio-swift-live-cursor")
+    let created = try await sdk.createFolder(name: folderName, parentID: 0)
+    let parentID = created.id
+    XCTAssertGreaterThan(parentID, 0)
+
+    do {
+      var expectedIDs: Set<Int> = []
+      for index in 0..<3 {
+        let child = try await sdk.createFolder(name: "page-\(index)", parentID: parentID)
+        expectedIDs.insert(child.id)
+      }
+
+      let firstPage = try await sdk.getFiles(
+        parentID: parentID, query: PutioFilesListQuery(perPage: 2, total: true))
+      XCTAssertEqual(firstPage.children.count, 2)
+      XCTAssertEqual(firstPage.total, 3)
+      let cursor = try XCTUnwrap(
+        firstPage.cursor, "backend should return a cursor for a partial page")
+
+      let secondPage = try await sdk.continueFiles(
+        cursor: cursor, query: PutioFilesListContinueQuery(perPage: 2))
+      XCTAssertEqual(secondPage.children.count, 1)
+      XCTAssertNil(secondPage.cursor)
+
+      let enumeratedIDs = Set((firstPage.children + secondPage.children).map(\.id))
+      XCTAssertEqual(enumeratedIDs, expectedIDs)
+    } catch {
+      try await cleanup(sdk: sdk, fileID: parentID)
+      throw error
+    }
+
+    try await cleanup(sdk: sdk, fileID: parentID)
+  }
+
   func testTransfersReadPathsLoadAgainstRealAPI() async throws {
     let sdk = try LiveSupport.newAuthedClient()
     let listed = try await sdk.listTransfers(query: PutioTransfersListQuery(perPage: 5))

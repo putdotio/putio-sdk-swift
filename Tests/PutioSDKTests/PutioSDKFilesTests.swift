@@ -212,6 +212,34 @@ final class PutioSDKFilesTests: XCTestCase {
       case "/v2/files/remove-sort-by-settings":
         XCTAssertEqual(request.httpMethod, "POST")
         return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"status":"OK"}"#.utf8))
+      case "/v2/files/list/continue":
+        XCTAssertEqual(request.httpMethod, "POST")
+        let components = URLComponents(
+          url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)
+        XCTAssertNil(components?.queryItems?.first(where: { $0.name == "cursor" }))
+        XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "per_page" })?.value, "10")
+        let body = try XCTUnwrap(requestBodyData(for: request))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+        XCTAssertEqual(json["cursor"], "next-page")
+        XCTAssertNil(json["per_page"])
+        let payload = """
+          {
+            "cursor": null,
+            "files": [
+              {
+                "id": 44,
+                "name": "Episode 4.mkv",
+                "size": 100,
+                "created_at": "2026-04-20T10:00:00Z",
+                "updated_at": "2026-04-20T10:00:00Z",
+                "file_type": "VIDEO",
+                "parent_id": 7
+              }
+            ],
+            "status": "OK"
+          }
+          """
+        return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
       case "/v2/files/search/continue":
         XCTAssertEqual(request.httpMethod, "POST")
         let components = URLComponents(
@@ -279,6 +307,8 @@ final class PutioSDKFilesTests: XCTestCase {
     let nextFile = try await sdk.findNextFile(fileID: 42, fileType: .video)
     let sorted = try await sdk.setSortBy(fileId: 42, sortBy: "NAME_ASC")
     let resetSort = try await sdk.resetFileSpecificSortSettings()
+    let continuedFiles = try await sdk.continueFiles(
+      cursor: "next-page", query: PutioFilesListContinueQuery(perPage: 10))
     let continuedSearch = try await sdk.continueFileSearch(
       cursor: "search-page-2", query: PutioFileSearchContinueQuery(perPage: 10))
     let startedConversion = try await sdk.startMp4Conversion(fileID: 42)
@@ -292,6 +322,10 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(listed.children.first?.startFrom, 91)
     XCTAssertEqual(listed.cursor, "next-page")
     XCTAssertEqual(listed.total, 1)
+    XCTAssertEqual(continuedFiles.children.map(\.id), [44])
+    XCTAssertNil(continuedFiles.cursor)
+    XCTAssertNil(continuedFiles.parent)
+    XCTAssertNil(continuedFiles.total)
     XCTAssertEqual(file.id, 42)
     XCTAssertEqual(folder.name, "Season 2")
     XCTAssertEqual(deleted.cursor, "after-delete")

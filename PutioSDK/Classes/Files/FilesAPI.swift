@@ -11,6 +11,17 @@ extension PutioSDK {
       total: envelope.total)
   }
 
+  public func continueFiles(
+    cursor: String, query: PutioFilesListContinueQuery = PutioFilesListContinueQuery()
+  ) async throws -> PutioFilesListResult {
+    let envelope = try await request(
+      "/files/list/continue", method: .post, query: query.parameters,
+      body: ["cursor": .string(cursor)], as: PutioFilesListEnvelope.self)
+    return PutioFilesListResult(
+      parent: envelope.parent, children: envelope.files, cursor: envelope.cursor,
+      total: envelope.total)
+  }
+
   public func getFile(fileID: Int, query: PutioFileDetailsQuery = PutioFileDetailsQuery())
     async throws -> PutioFile
   {
@@ -94,6 +105,9 @@ public struct PutioFilesListResult {
   public let total: Int?
 }
 
+// Shared by `/files/list` and `/files/list/continue`; the continuation response may
+// omit `parent` and `total`, so both stay optional here. `files` stays required so a
+// malformed 2xx payload surfaces as a decoding failure instead of an empty page.
 private struct PutioFilesListEnvelope: Decodable {
   let parent: PutioFile?
   let files: [PutioFile]

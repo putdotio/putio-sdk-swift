@@ -266,6 +266,20 @@ public struct PutioFilesListQuery: Sendable {
   }
 }
 
+public struct PutioFilesListContinueQuery: Sendable {
+  public let perPage: Int?
+
+  public init(perPage: Int? = nil) {
+    self.perPage = perPage
+  }
+
+  var parameters: PutioRequestParameters {
+    var query: PutioRequestParameters = [:]
+    if let perPage { query["per_page"] = .integer(perPage) }
+    return query
+  }
+}
+
 public struct PutioFileDetailsQuery: Sendable {
   public let mp4Size: Bool
   public let startFrom: Bool

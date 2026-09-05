@@ -128,6 +128,7 @@ language mode 5.
   - `deleteHistoryEvent`
 - `files`
   - `getFiles`
+  - `continueFiles`
   - `getFile`
   - `searchFiles`
   - `continueFileSearch`
@@ -175,7 +176,7 @@ language mode 5.
 | Auth and OAuth | `covered` |
 | Account basics and settings | `covered` |
 | Security and 2FA | `covered` |
-| Files browse and detail | `covered` |
+| Files browse and detail with cursor continuation | `covered` |
 | Search with cursor continuation | `covered` |
 | Transfers | `covered` |
 | History and events | `covered` |
@@ -183,7 +184,7 @@ language mode 5.
 | Subtitles | `covered` |
 | Playback-adjacent helpers | `covered` |
 
-Typed query inputs exist for account info, account settings updates, file listing, file detail projections, file search and continuation, transfer listing, and trash listing. Cursor or continuation flows stay explicit where the backend exposes them.
+Typed query inputs exist for account info, account settings updates, file listing and continuation, file detail projections, file search and continuation, transfer listing, and trash listing. Cursor or continuation flows stay explicit where the backend exposes them.
 
 ## What This Package Is Not
 
