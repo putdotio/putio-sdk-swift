@@ -27,16 +27,18 @@ list_devices() {
 # Runtime sections look like `-- watchOS 26.4 --`; device rows carry the UDID in
 # parentheses. Only rows inside a matching section count, so an iOS device
 # named after a watch (or a renamed verify device) can't be picked by mistake.
+# awk keeps reading after the first match instead of exiting: with pipefail an
+# early exit would SIGPIPE simctl on a long listing and fail the substitution.
 udid="$(
   list_devices | awk -v platform="${platform}" '
     /^-- .* --$/ {
       in_section = ($2 == platform)
       next
     }
-    in_section && match($0, /\([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\)/) {
-      print substr($0, RSTART + 1, RLENGTH - 2)
-      exit
+    udid == "" && in_section && match($0, /\([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\)/) {
+      udid = substr($0, RSTART + 1, RLENGTH - 2)
     }
+    END { if (udid != "") print udid }
   '
 )"
 
