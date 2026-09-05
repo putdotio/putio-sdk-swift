@@ -9,7 +9,6 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testOptionalNextFileMapsSuccessorAndAbsence() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     var responses = [
       """
       {
@@ -22,7 +21,7 @@ final class PutioSDKFilesTests: XCTestCase {
       """,
       #"{"next_file":null}"#,
     ]
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/next-file")
       let components = URLComponents(
         url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)
@@ -47,8 +46,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testOptionalNextFileRejectsMissingEnvelopeKey() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/next-file")
       return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{}"#.utf8))
     }
@@ -69,8 +67,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testFilesAndMediaEndpointsDecodeResponsesAndBuildExpectedRequests() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       switch request.url?.path {
       case "/v2/files/list":
         let components = URLComponents(
@@ -346,8 +343,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceBuildsAuthenticatedHLSURLAndMapsStartFrom() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/custom/v2/files/42")
       XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token token / value")
 
@@ -392,10 +388,9 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceUsesOneConfigSnapshotAcrossSuspension() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     let requestStarted = expectation(description: "metadata request started")
     let allowResponse = expectation(description: "metadata response allowed")
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.host, "old.example.test")
       XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token old-token")
       requestStarted.fulfill()
@@ -443,8 +438,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceReportsConversionRequired() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/43")
       return (
         makeHTTPResponse(for: request, statusCode: 200),
@@ -463,8 +457,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceRejectsNonVideoWithTypedRecovery() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/44")
       return (
         makeHTTPResponse(for: request, statusCode: 200),
@@ -490,8 +483,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourcePreservesTypedAPIErrors() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/404")
       return (
         makeHTTPResponse(for: request, statusCode: 404),
@@ -516,8 +508,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourcePreservesTypedTransportErrors() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/45")
       throw URLError(.notConnectedToInternet)
     }
@@ -539,14 +530,13 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceRejectsMissingRequiredVideoState() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     let cases = [
       (fileID: 46, providedState: #""start_from": 0"#),
       (fileID: 47, providedState: #""need_convert": false"#),
     ]
 
     for testCase in cases {
-      MockURLProtocol.requestHandler = { request in
+      try installMockRequestHandler { request in
         XCTAssertEqual(request.url?.path, "/v2/files/\(testCase.fileID)")
         let payload = """
           {
@@ -577,14 +567,13 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceRejectsInvalidStartFromValues() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     let cases = [
       (fileID: 48, startFrom: "-1"),
       (fileID: 49, startFrom: "1e100"),
     ]
 
     for testCase in cases {
-      MockURLProtocol.requestHandler = { request in
+      try installMockRequestHandler { request in
         XCTAssertEqual(request.url?.path, "/v2/files/\(testCase.fileID)")
         let payload = """
           {
@@ -616,8 +605,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceAcceptsIntMaxStartFrom() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/50")
       let payload = """
         {

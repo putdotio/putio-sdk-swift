@@ -1,27 +1,49 @@
 #!/usr/bin/env bash
 # Prints an xcodebuild destination (id=<udid>) for the first available
-# simulator in the requested platform family.
+# simulator under the requested platform's runtime section in
+# `xcrun simctl list devices available`.
+#
+# Set PUTIO_SIMCTL_DEVICE_LIST to a file to parse a captured listing instead of
+# querying simctl (used by scripts/check-platform-simulator-destination.sh).
 set -euo pipefail
 
 platform="${1:?usage: platform-simulator-destination.sh <tvOS|watchOS>}"
 case "${platform}" in
-  tvOS) family="Apple TV" ;;
-  watchOS) family="Apple Watch" ;;
+  tvOS | watchOS) ;;
   *)
     echo "unsupported platform: ${platform}" >&2
     exit 64
     ;;
 esac
 
+list_devices() {
+  if [ -n "${PUTIO_SIMCTL_DEVICE_LIST:-}" ]; then
+    cat "${PUTIO_SIMCTL_DEVICE_LIST}"
+  else
+    xcrun simctl list devices available
+  fi
+}
+
+# Runtime sections look like `-- watchOS 26.4 --`; device rows carry the UDID in
+# parentheses. Only rows inside a matching section count, so an iOS device
+# named after a watch (or a renamed verify device) can't be picked by mistake.
+# awk keeps reading after the first match instead of exiting: with pipefail an
+# early exit would SIGPIPE simctl on a long listing and fail the substitution.
 udid="$(
-  xcrun simctl list devices available \
-    | grep -F "${family}" \
-    | grep -oE '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}' \
-    | head -n 1
+  list_devices | awk -v platform="${platform}" '
+    /^-- .* --$/ {
+      in_section = ($2 == platform)
+      next
+    }
+    udid == "" && in_section && match($0, /\([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\)/) {
+      udid = substr($0, RSTART + 1, RLENGTH - 2)
+    }
+    END { if (udid != "") print udid }
+  '
 )"
 
 if [ -z "${udid}" ]; then
-  echo "no available ${family} simulator; install the ${platform} runtime" >&2
+  echo "no available ${platform} simulator; install the ${platform} runtime" >&2
   exit 69
 fi
 

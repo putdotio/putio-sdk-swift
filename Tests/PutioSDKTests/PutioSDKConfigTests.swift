@@ -9,7 +9,7 @@ final class PutioSDKConfigTests: XCTestCase {
   }
 
   func testGetConfigDecodesNativeConfigWithDefaults() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.httpMethod, "GET")
       XCTAssertEqual(request.url?.path, "/v2/config")
 
@@ -50,8 +50,7 @@ final class PutioSDKConfigTests: XCTestCase {
   }
 
   func testSaveConfigPostsTypedValue() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.httpMethod, "PUT")
       XCTAssertEqual(request.url?.path, "/v2/config/chromecast_playback_type")
       XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")

@@ -9,8 +9,7 @@ final class PutioSDKAccountTests: XCTestCase {
   }
 
   func testAccountEndpointsDecodeSettingsAndMutationBodies() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       switch request.url?.path {
       case "/v2/account/settings":
         if request.httpMethod == "GET" {

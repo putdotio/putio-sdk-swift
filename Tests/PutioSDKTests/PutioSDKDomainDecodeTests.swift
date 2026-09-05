@@ -9,7 +9,7 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
   }
 
   func testGetRoutesDecodesTypedRoutes() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/tunnel/routes")
 
       let payload = """
@@ -40,7 +40,7 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
   }
 
   func testGetGrantsDecodesAppList() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/oauth/grants")
 
       let payload = """
@@ -74,7 +74,7 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
   }
 
   func testGetSubtitlesPreservesOauthTokenQueryAndDecodesResponse() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/subtitles")
       let components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)
       XCTAssertEqual(
@@ -115,7 +115,7 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
   }
 
   func testSearchFilesDecodesTypedFilesAndCursor() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/search")
       let components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)
       XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "query" })?.value, "matrix")
@@ -186,7 +186,7 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
   }
 
   func testGetMp4ConversionStatusDecodesTypedStatus() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/mp4")
 
       let payload = """
@@ -214,7 +214,7 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
   }
 
   func testGetStartFromDecodesNumericStartPosition() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/start-from")
 
       let payload = """
@@ -237,7 +237,7 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
   }
 
   func testGetHistoryEventsDecodesConcreteEventTypes() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/events/list")
       let components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)
       XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "per_page" })?.value, "25")

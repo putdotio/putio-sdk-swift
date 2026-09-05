@@ -9,8 +9,7 @@ final class PutioSDKTrashTests: XCTestCase {
   }
 
   func testTrashEndpointsDecodeResponsesAndBuildExpectedBodies() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       switch request.url?.path {
       case "/v2/trash/list":
         let components = URLComponents(
