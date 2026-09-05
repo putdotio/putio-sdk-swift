@@ -70,7 +70,8 @@ final class PutioSDKTransportTests: XCTestCase {
   // delegate released while a request is in flight is neither kept alive nor called.
   // The config snapshot itself has no deterministic unit proof: the mock transport only
   // observes a request after the SDK has already read `config`, so an ordering test
-  // cannot distinguish the on-actor snapshot from the old off-actor read.
+  // cannot distinguish the on-actor snapshot from the old off-actor read. That shape is
+  // enforced structurally by scripts/check-transport-isolation.sh in `make verify`.
   func testInFlightRequestDoesNotRetainReleasedDelegate() async throws {
     let gate = RequestGate()
     try installMockRequestHandler { request in
@@ -100,6 +101,33 @@ final class PutioSDKTransportTests: XCTestCase {
       XCTAssertEqual(error.statusCode, 500)
     }
     XCTAssertNil(sdk.delegate)
+  }
+
+  // docs/ARCHITECTURE.md contract: delegate callbacks come from the global executor,
+  // never inline on the caller's actor. Calling from the main actor makes "not on the
+  // main thread" a faithful proxy for "off the caller's actor".
+  @MainActor
+  func testDelegateCallbacksArriveOffTheCallerActor() async throws {
+    try installMockRequestHandler { request in
+      (makeHTTPResponse(for: request, statusCode: 500), Data(#"{"status":"ERROR"}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+    let delegate = ThreadRecordingDelegate()
+    sdk.delegate = delegate
+
+    do {
+      _ = try await sdk.getAccountInfo()
+      XCTFail("Expected HTTP 500 to surface as an error")
+    } catch let error as PutioSDKError {
+      XCTAssertEqual(error.statusCode, 500)
+    }
+
+    XCTAssertEqual(delegate.callbacks.map(\.statusCode), [500])
+    XCTAssertEqual(delegate.callbacks.map(\.onMainThread), [false])
   }
 
   func testGetFileSurfacesTypedHttpErrors() async throws {
@@ -298,4 +326,26 @@ private struct RequestGateTimeout: Error, CustomStringConvertible {
 
 private final class RecordingDelegate: PutioSDKDelegate {
   func onPutioSDKError(error: PutioSDKError) {}
+}
+
+private final class ThreadRecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
+  struct Callback {
+    let statusCode: Int?
+    let onMainThread: Bool
+  }
+
+  private let lock = NSLock()
+  private var recorded: [Callback] = []
+
+  var callbacks: [Callback] {
+    lock.lock()
+    defer { lock.unlock() }
+    return recorded
+  }
+
+  func onPutioSDKError(error: PutioSDKError) {
+    lock.lock()
+    recorded.append(Callback(statusCode: error.statusCode, onMainThread: Thread.isMainThread))
+    lock.unlock()
+  }
 }

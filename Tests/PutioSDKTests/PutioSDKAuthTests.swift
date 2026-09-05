@@ -355,7 +355,11 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertEqual(delegate.errors.map(\.statusCode), [500])
   }
 
-  func testAwaitDeviceCodeAuthorizationStopsWhenCancelled() async throws {
+  // Cancellation during the sleep between polls. The interval sleep runs on a test clock
+  // whose `sleep` reports entry from inside the suspension, so once the test observes
+  // entry the SDK task is inside the sleep with no SDK code left to run before it. The
+  // clock resumes only on cancellation (or a 6s fallback that trips the response bound).
+  func testAwaitDeviceCodeAuthorizationStopsWhenCancelledDuringSleep() async throws {
     let counter = PollCounter()
     try installMockRequestHandler { request in
       _ = counter.increment()
@@ -366,32 +370,129 @@ final class PutioSDKAuthTests: XCTestCase {
       config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
       urlSession: makeTestSession()
     )
+    let sleeper = ObservableSleeper()
+    sdk.deviceCodePollClock = ObservableClock(sleeper: sleeper)
 
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(60))
     }
-    while counter.value == 0 {
-      await Task.yield()
+    defer {
+      task.cancel()
+      Task { await sleeper.abandon() }
     }
-    task.cancel()
+    try await sleeper.waitUntilSleeping()
+    let requested = await sleeper.requestedInterval
+    XCTAssertEqual(requested, .seconds(60))
 
+    let clock = ContinuousClock()
+    let cancelled = clock.now
+    task.cancel()
     do {
       _ = try await task.value
       XCTFail("Expected cancellation to propagate")
     } catch is CancellationError {
     }
     XCTAssertEqual(counter.value, 1)
+    XCTAssertLessThan(clock.now - cancelled, .seconds(2), "cancellation must interrupt the sleep")
   }
 
-  func testAwaitDeviceCodeAuthorizationDiscardsResultWhenCancelledMidPoll() async throws {
-    // The handler is installed before the polling task exists, and it looks the task up
-    // through a box, so the first request can never race a missing handler.
-    let pollingTask = TaskBox<PutioDeviceCodeAuthorization>()
+  // The same loop on a clock that forwards to the real `ContinuousClock` after
+  // reporting entry. This is cancellation-response coverage for the production clock,
+  // not a deterministic proof that cancellation lands mid-sleep: the test may cancel in
+  // the gap between the entry signal and `base.sleep` suspending. The deterministic
+  // mid-sleep proof is the observable-clock test above, where entry is reported from
+  // inside the suspension.
+  func testAwaitDeviceCodeAuthorizationContinuousClockSleepIsInterruptedByCancellation()
+    async throws
+  {
+    let counter = PollCounter()
     try installMockRequestHandler { request in
-      // Cancel while the poll is producing a success, so the result is already in hand
-      // when the method reaches its post-poll cancellation check.
-      pollingTask.cancel()
-      return (
+      _ = counter.increment()
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let entry = SleepEntrySignal()
+    sdk.deviceCodePollClock = SpyClock(base: ContinuousClock(), onSleep: entry.markEntered)
+
+    let task = Task {
+      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(20))
+    }
+    defer {
+      task.cancel()
+      entry.abandon()
+    }
+    try await entry.waitUntilEntered()
+
+    let clock = ContinuousClock()
+    let cancelled = clock.now
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("Expected cancellation to propagate")
+    } catch is CancellationError {
+    }
+    XCTAssertEqual(counter.value, 1)
+    XCTAssertLessThan(
+      clock.now - cancelled, .seconds(2), "continuous clock sleep must respond to cancellation")
+  }
+
+  // The shipped wiring: the default clock is the continuous clock, and the loop with no
+  // override responds to cancellation during its interval. Entry cannot be observed on
+  // the stdlib clock, so this test only bounds the response; the two tests above carry
+  // the deterministic proof.
+  func testAwaitDeviceCodeAuthorizationDefaultClockIsInterruptedByCancellation() async throws {
+    let counter = PollCounter()
+    try installMockRequestHandler { request in
+      _ = counter.increment()
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    XCTAssertTrue(sdk.deviceCodePollClock is ContinuousClock)
+    let barrier = PollBarrier()
+    sdk.deviceCodePollObserver = { event in
+      if event == .willSleep { await barrier.park() }
+    }
+
+    let task = Task {
+      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(20))
+    }
+    defer {
+      task.cancel()
+      Task { await barrier.abandon() }
+    }
+    try await barrier.waitUntilParked()
+    await barrier.release()
+    try await Task.sleep(for: .milliseconds(300))
+
+    let clock = ContinuousClock()
+    let cancelled = clock.now
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("Expected cancellation to propagate")
+    } catch is CancellationError {
+    }
+    XCTAssertEqual(counter.value, 1)
+    XCTAssertLessThan(
+      clock.now - cancelled, .seconds(2), "default clock sleep must respond to cancellation")
+  }
+
+  // Cancellation after a poll has produced a result. The SDK parks at `.pollCompleted`
+  // with `.authorized` already in hand; cancelling there and releasing proves the
+  // post-poll cancellation check wins. Removing that check returns `.authorized` here.
+  func testAwaitDeviceCodeAuthorizationDiscardsResultWhenCancelledAfterPollCompletes()
+    async throws
+  {
+    try installMockRequestHandler { request in
+      (
         makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":"tv-token"}"#.utf8)
       )
     }
@@ -400,15 +501,52 @@ final class PutioSDKAuthTests: XCTestCase {
       config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
       urlSession: makeTestSession()
     )
-    let task = pollingTask.start {
+    let barrier = PollBarrier()
+    sdk.deviceCodePollObserver = { event in
+      if event == .pollCompleted { await barrier.park() }
+    }
+
+    let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "READY", pollInterval: .seconds(60))
     }
+    defer {
+      task.cancel()
+      Task { await barrier.abandon() }
+    }
+    try await barrier.waitUntilParked()
+    task.cancel()
+    await barrier.release()
 
     do {
       let authorization = try await task.value
       XCTFail("Expected cancellation to win over \(authorization)")
     } catch is CancellationError {
     }
+  }
+
+  // A non-expiry failure reaches the delegate from the transport's global executor,
+  // not on the caller's actor.
+  @MainActor
+  func testAwaitDeviceCodeAuthorizationForwardsFailuresOffTheCallerActor() async throws {
+    try installMockRequestHandler { request in
+      (makeHTTPResponse(for: request, statusCode: 500), Data(#"{"status":"ERROR"}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let delegate = RecordingDelegate()
+    sdk.delegate = delegate
+
+    do {
+      _ = try await sdk.awaitDeviceCodeAuthorization(code: "BROKEN", pollInterval: .milliseconds(5))
+      XCTFail("Expected a server failure to propagate")
+    } catch let error as PutioSDKError {
+      XCTAssertEqual(error.statusCode, 500)
+    }
+    XCTAssertEqual(delegate.errors.map(\.statusCode), [500])
+    XCTAssertEqual(delegate.callbacksOnMainThread, [false])
   }
 
   func testAuthModelsDecodeGracefulDefaults() throws {
@@ -454,6 +592,7 @@ private final class PollCounter: @unchecked Sendable {
 private final class RecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
   private let lock = NSLock()
   private var recorded: [PutioSDKError] = []
+  private var mainThreadFlags: [Bool] = []
 
   var errors: [PutioSDKError] {
     lock.lock()
@@ -461,33 +600,238 @@ private final class RecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
     return recorded
   }
 
+  var callbacksOnMainThread: [Bool] {
+    lock.lock()
+    defer { lock.unlock() }
+    return mainThreadFlags
+  }
+
   func onPutioSDKError(error: PutioSDKError) {
     lock.lock()
     recorded.append(error)
+    mainThreadFlags.append(Thread.isMainThread)
     lock.unlock()
   }
 }
 
-private final class TaskBox<Success: Sendable>: @unchecked Sendable {
-  private let lock = NSLock()
-  private var task: Task<Success, Error>?
-  private var cancelRequested = false
+// Suspending rendezvous between a test and the SDK's poll observer. `park` suspends the
+// SDK until `release`; `waitUntilParked` suspends the test until the SDK has parked.
+// Everything suspends rather than blocking, so no cooperative-pool thread is held.
+// Stand-in for `Task.sleep` that reports when the SDK is actually suspended inside it
+// and honours cancellation the same way `Task.sleep` does: the continuation resumes
+// with `CancellationError` when the sleeping task is cancelled, never on its own.
+private actor ObservableSleeper {
+  private var sleeper: CheckedContinuation<Void, Error>?
+  private var waiter: CheckedContinuation<Void, Error>?
+  private var isSleeping = false
+  private(set) var requestedInterval: Duration?
 
-  func start(_ operation: @escaping @Sendable () async throws -> Success) -> Task<Success, Error> {
-    lock.lock()
-    defer { lock.unlock() }
-    let task = Task(operation: operation)
-    self.task = task
-    if cancelRequested {
-      task.cancel()
+  func sleep(for interval: Duration) async throws {
+    requestedInterval = interval
+    try await sleep()
+  }
+
+  func sleep() async throws {
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation {
+        (continuation: CheckedContinuation<Void, Error>) in
+        sleeper = continuation
+        isSleeping = true
+        waiter?.resume()
+        waiter = nil
+        // Like a real interval, the sleep eventually ends on its own. Long enough to
+        // trip the test's elapsed bound, short enough that a regression fails instead
+        // of hanging the suite.
+        Task {
+          try? await Task.sleep(for: .seconds(6))
+          await self.finish()
+        }
+      }
+    } onCancel: {
+      Task { await self.cancel() }
     }
-    return task
   }
 
-  func cancel() {
-    lock.lock()
-    defer { lock.unlock() }
-    cancelRequested = true
-    task?.cancel()
+  private func finish() {
+    sleeper?.resume()
+    sleeper = nil
   }
+
+  func waitUntilSleeping() async throws {
+    if isSleeping { return }
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      waiter = continuation
+      scheduleDeadline(stage: "SDK to enter the poll sleep")
+    }
+  }
+
+  // Failure cleanup: wake anything still suspended so a failed test reports instead of
+  // hanging on a continuation nobody will resume.
+  func abandon() {
+    waiter?.resume(throwing: RendezvousTimeout(stage: "abandoned sleeper wait"))
+    waiter = nil
+    sleeper?.resume(throwing: CancellationError())
+    sleeper = nil
+  }
+
+  private func scheduleDeadline(stage: String) {
+    Task {
+      try? await Task.sleep(for: .seconds(5))
+      await self.expireWaiter(stage: stage)
+    }
+  }
+
+  private func expireWaiter(stage: String) {
+    waiter?.resume(throwing: RendezvousTimeout(stage: stage))
+    waiter = nil
+  }
+
+  private func cancel() {
+    sleeper?.resume(throwing: CancellationError())
+    sleeper = nil
+  }
+}
+
+// Synchronous entry signal for the production-sleep test. `markEntered` never suspends,
+// so the SDK task proceeds straight from it into the real sleep primitive.
+private final class SleepEntrySignal: @unchecked Sendable {
+  private let lock = NSLock()
+  private var entered = false
+  private var waiter: CheckedContinuation<Void, Error>?
+
+  func markEntered() {
+    lock.lock()
+    entered = true
+    let waiter = self.waiter
+    self.waiter = nil
+    lock.unlock()
+    waiter?.resume()
+  }
+
+  func waitUntilEntered() async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      lock.lock()
+      if entered {
+        lock.unlock()
+        continuation.resume()
+        return
+      }
+      waiter = continuation
+      lock.unlock()
+      Task {
+        try? await Task.sleep(for: .seconds(5))
+        self.expire()
+      }
+    }
+  }
+
+  func abandon() {
+    expire()
+  }
+
+  private func expire() {
+    lock.lock()
+    let waiter = self.waiter
+    self.waiter = nil
+    lock.unlock()
+    waiter?.resume(throwing: RendezvousTimeout(stage: "SDK to enter the production sleep"))
+  }
+}
+
+// Test clock whose only behaviour is the observable sleep above. `now` is real time so
+// `sleep(for:)` deadlines are well formed; the duration is recovered from the deadline.
+private struct ObservableClock: Clock {
+  typealias Instant = ContinuousClock.Instant
+  typealias Duration = Swift.Duration
+
+  let sleeper: ObservableSleeper
+  private let base = ContinuousClock()
+
+  var now: Instant { base.now }
+  var minimumResolution: Duration { base.minimumResolution }
+
+  func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+    let interval = deadline - base.now
+    try await sleeper.sleep(for: roundedToSeconds(interval))
+  }
+
+  private func roundedToSeconds(_ duration: Duration) -> Duration {
+    let seconds = (duration.components.seconds, duration.components.attoseconds)
+    return .seconds(seconds.0 + (seconds.1 >= 500_000_000_000_000_000 ? 1 : 0))
+  }
+}
+
+// Forwards to a real clock after reporting entry synchronously. A test observing the
+// signal can still race the subsequent `base.sleep`, so this spies on reach, not on an
+// active suspension.
+private struct SpyClock<Base: Clock>: Clock where Base.Duration == Swift.Duration {
+  typealias Instant = Base.Instant
+  typealias Duration = Swift.Duration
+
+  let base: Base
+  let onSleep: @Sendable () -> Void
+
+  var now: Instant { base.now }
+  var minimumResolution: Duration { base.minimumResolution }
+
+  func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+    onSleep()
+    try await base.sleep(until: deadline, tolerance: tolerance)
+  }
+}
+
+private actor PollBarrier {
+  private var parked: CheckedContinuation<Void, Never>?
+  private var waiter: CheckedContinuation<Void, Error>?
+  private var isParked = false
+  private var isReleased = false
+
+  func park() async {
+    isParked = true
+    waiter?.resume()
+    waiter = nil
+    if isReleased { return }
+    await withCheckedContinuation { parked = $0 }
+  }
+
+  func waitUntilParked() async throws {
+    if isParked { return }
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      waiter = continuation
+      scheduleDeadline(stage: "SDK to park at the observer")
+    }
+  }
+
+  func release() {
+    isReleased = true
+    parked?.resume()
+    parked = nil
+  }
+
+  // Failure cleanup: wake anything still suspended so a failed test reports instead of
+  // hanging on a continuation nobody will resume.
+  func abandon() {
+    waiter?.resume(throwing: RendezvousTimeout(stage: "abandoned barrier wait"))
+    waiter = nil
+    release()
+  }
+
+  private func scheduleDeadline(stage: String) {
+    Task {
+      try? await Task.sleep(for: .seconds(5))
+      await self.expireWaiter(stage: stage)
+    }
+  }
+
+  private func expireWaiter(stage: String) {
+    waiter?.resume(throwing: RendezvousTimeout(stage: stage))
+    waiter = nil
+  }
+}
+
+// A rendezvous that never happens fails the test loudly after five seconds instead of
+// hanging on a continuation nobody will resume.
+private struct RendezvousTimeout: Error, CustomStringConvertible {
+  let stage: String
+  var description: String { "timed out waiting for \(stage)" }
 }

@@ -1,0 +1,57 @@
+public final class PutioSDK {
+  public var config: PutioSDKConfig
+  public weak var delegate: PutioSDKDelegate?
+
+  func request<T>(_ url: String, as type: T.Type) async throws -> sending T {
+    let snapshot = config
+    return try await perform(config: snapshot, delegateReference: PutioSDKDelegateReference(delegate), as: type)
+  }
+
+  /* block comment mentioning self.config and delegate { */
+  @concurrent
+  private func perform<T>(config requestConfig: PutioSDKConfig, delegateReference: PutioSDKDelegateReference, as type: T.Type) async throws -> sending T {
+    // line comment: self.config delegate }
+    let sentinel = "}" + "\(requestConfig.baseURL) delegate \"self.config\"" + #"raw "self.delegate" }"#
+    let nested = "outer \(String(describing: "inner \(requestConfig.baseURL) }")) tail"
+    let block = """
+      self.config delegate }
+      """
+    let data = try await execute(requestConfig: requestConfig, delegateReference: delegateReference)
+    _ = String(decoding: data, as: UTF8.self)
+    _ = (UTF8.self, Data.self, UTF8 . self, Data./* metatype */self)
+    _ = (...requestConfig.baseURL.count, 0..<requestConfig.baseURL.count)
+    _ = requestConfig
+      .baseURL
+    _ = delegateReference?.describe()
+    let optionalSnapshot: PutioSDKConfig? = requestConfig
+    _ = (optionalSnapshot?.config, optionalSnapshot!.delegate)
+    _ = [requestConfig].map(\.config)
+    _ = requestConfig[config: 1]
+    _ = requestConfig.update(config:delegate:)
+    let field: PutioField = .config
+    let other: PutioField = (.delegate)
+    describe(.config, then: .delegate)
+    _ = (field, other)
+    _ = PutioSDKErrorRequestInformation(config: requestConfig)
+    _ = "\(/* ) */ requestConfig.baseURL) \(String(describing: requestConfig.baseURL, config: 1))"
+    _ = PutioSDKErrorRequestInformation(
+      config: requestConfig)
+    let opener = #/{ config delegate self./#
+    let multiline = ##/
+      { self.config } "delegate"
+      /##
+    let spaced = requestConfig . baseURL
+    let commented = requestConfig./* hop */baseURL
+    let chained = delegateReference
+      .describe()
+    let escapedSlash = #/a\/#{ self.config }/#
+    let `escapedLocal` = requestConfig.baseURL
+    _ = (sentinel, block, nested, opener, multiline, spaced, commented, chained, escapedSlash, `escapedLocal`)
+    return try JSONDecoder().decode(type, from: data)
+  }
+
+  @concurrent private func execute(requestConfig: PutioSDKConfig, delegateReference: PutioSDKDelegateReference) async throws -> Data {
+    delegateReference.notify(PutioSDKError())
+    return Data()
+  }
+}

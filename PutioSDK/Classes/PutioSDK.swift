@@ -12,6 +12,14 @@ public final class PutioSDK {
 
   public var config: PutioSDKConfig
 
+  // Internal test seams for `awaitDeviceCodeAuthorization`. The observer is awaited at
+  // the loop's observable boundaries so tests can park it and cancel at an exact point.
+  // The clock owns the interval sleep: the loop's only sleep is `clock.sleep`, so a test
+  // clock observes entry from inside the sleep and can prove cancellation lands while
+  // the sleep is active. Never set outside the package test targets.
+  var deviceCodePollObserver: (@Sendable (PutioDeviceCodePollEvent) async -> Void)?
+  var deviceCodePollClock: any Clock<Duration> = ContinuousClock()
+
   public convenience init(config: PutioSDKConfig) {
     self.init(config: config, urlSession: .shared)
   }
@@ -56,7 +64,7 @@ public final class PutioSDK {
     )
     return try await perform(
       requestConfig: requestConfig,
-      delegate: PutioSDKDelegateReference(delegate, isExpectedFailure: isExpectedFailure),
+      delegateReference: PutioSDKDelegateReference(delegate, isExpectedFailure: isExpectedFailure),
       as: type)
   }
 
@@ -66,13 +74,15 @@ public final class PutioSDK {
   // consumer's main thread. `@concurrent` keeps that work on the global executor while the
   // public domain methods that call into `request` stay caller-isolated. Only the value
   // snapshot taken in `request` crosses the hop; `self.config` is never read here.
+  // scripts/check-transport-isolation.sh rejects any `self` use and bare
+  // `config`/`delegate` reads inside every `@concurrent` body in this file.
   @concurrent
   private func perform<T: Decodable>(
     requestConfig: PutioSDKRequestConfig,
-    delegate: PutioSDKDelegateReference,
+    delegateReference: PutioSDKDelegateReference,
     as type: T.Type
   ) async throws -> sending T {
-    let data = try await execute(requestConfig: requestConfig, delegate: delegate)
+    let data = try await execute(requestConfig: requestConfig, delegateReference: delegateReference)
 
     do {
       return try JSONDecoder().decode(type, from: data)
@@ -80,7 +90,7 @@ public final class PutioSDK {
       let apiError = PutioSDKError(
         request: PutioSDKErrorRequestInformation(config: requestConfig), decodingError: error,
         responseBody: String(decoding: data, as: UTF8.self))
-      delegate.notify(apiError)
+      delegateReference.notify(apiError)
       throw apiError
     }
   }
@@ -88,9 +98,9 @@ public final class PutioSDK {
   // Stays off the caller's actor for the same reason as `request` above: keeps the
   // network round trip and error-envelope decode/delegate callback on the global executor.
   @concurrent
-  private func execute(requestConfig: PutioSDKRequestConfig, delegate: PutioSDKDelegateReference)
-    async throws -> Data
-  {
+  private func execute(
+    requestConfig: PutioSDKRequestConfig, delegateReference: PutioSDKDelegateReference
+  ) async throws -> Data {
     let requestInformation = PutioSDKErrorRequestInformation(config: requestConfig)
     let urlRequest = try buildURLRequest(from: requestConfig)
 
@@ -101,14 +111,14 @@ public final class PutioSDK {
       (data, response) = try await urlSession.data(for: urlRequest)
     } catch {
       let apiError = PutioSDKError(request: requestInformation, error: error)
-      delegate.notify(apiError)
+      delegateReference.notify(apiError)
       throw apiError
     }
 
     guard let httpResponse = response as? HTTPURLResponse else {
       let apiError = PutioSDKError(
         request: requestInformation, unknownError: URLError(.badServerResponse))
-      delegate.notify(apiError)
+      delegateReference.notify(apiError)
       throw apiError
     }
 
@@ -124,7 +134,7 @@ public final class PutioSDK {
         underlyingError: URLError(.badServerResponse),
         responseBody: body
       )
-      delegate.notify(apiError)
+      delegateReference.notify(apiError)
       throw apiError
     }
 

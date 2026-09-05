@@ -1,0 +1,11 @@
+public final class PutioSDK {
+  func request<T>(as type: T.Type) async throws -> sending T { try await perform(as: type) }
+  @concurrent
+  private func perform<T>(as type: T.Type) async throws -> sending T {
+    let pattern = #/foo\/#}bar/#
+    let token = config.token
+    return try await execute(pattern, token)
+  }
+  @concurrent
+  private func execute(_ a: Regex<Substring>, _ b: String) async throws -> Data { Data() }
+}

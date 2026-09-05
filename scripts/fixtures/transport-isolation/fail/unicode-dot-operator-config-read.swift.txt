@@ -1,0 +1,14 @@
+infix operator .⊕.
+public func .⊕. (lhs: Int, rhs: PutioSDKConfig) -> Int { lhs + rhs.clientID.count }
+
+public final class PutioSDK {
+  func request<T>(as type: T.Type) async throws -> sending T { try await perform(as: type) }
+  @concurrent
+  private func perform<T>(as type: T.Type) async throws -> sending T { try await execute() }
+  @concurrent
+  private func execute() async throws -> Data {
+    let total = 0 .⊕. config
+    _ = total
+    return Data()
+  }
+}

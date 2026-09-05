@@ -1,0 +1,10 @@
+public final class PutioSDK {
+  func request<T>(as type: T.Type) async throws -> sending T { try await perform(as: type) }
+  @concurrent
+  private func perform<T>(as type: T.Type) async throws -> sending T {
+    let snapshot = Bool.random() ? config : PutioSDKConfig(clientID: "x")
+    return try await execute(snapshot)
+  }
+  @concurrent
+  private func execute(_ a: PutioSDKConfig) async throws -> Data { Data() }
+}
