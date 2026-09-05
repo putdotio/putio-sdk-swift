@@ -191,12 +191,7 @@ extension PutioSDK {
       }
 
       await deviceCodePollObserver?(.willSleep)
-      if let deviceCodePollSleeper {
-        try await deviceCodePollSleeper(interval)
-      } else {
-        try await Self.sleepBetweenDeviceCodePolls(
-          interval, onEntry: deviceCodeSleepEntryObserver)
-      }
+      try await deviceCodePollClock.sleep(for: interval)
     }
   }
 

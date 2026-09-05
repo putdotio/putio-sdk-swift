@@ -355,10 +355,10 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertEqual(delegate.errors.map(\.statusCode), [500])
   }
 
-  // Cancellation during the sleep between polls. The interval sleep runs on a test
-  // clock that signals once the SDK is actually suspended inside `sleep`; the test
-  // cancels at that point. A sleeper that cannot be interrupted would keep the task
-  // alive until the 60s interval elapsed and trip the elapsed bound.
+  // Cancellation during the sleep between polls. The interval sleep runs on a test clock
+  // whose `sleep` reports entry from inside the suspension, so once the test observes
+  // entry the SDK task is inside the sleep with no SDK code left to run before it. The
+  // clock resumes only on cancellation (or a 6s fallback that trips the response bound).
   func testAwaitDeviceCodeAuthorizationStopsWhenCancelledDuringSleep() async throws {
     let counter = PollCounter()
     try installMockRequestHandler { request in
@@ -371,13 +371,8 @@ final class PutioSDKAuthTests: XCTestCase {
       urlSession: makeTestSession()
     )
     let sleeper = ObservableSleeper()
-    sdk.deviceCodePollSleeper = { interval in
-      XCTAssertEqual(interval, .seconds(60))
-      try await sleeper.sleep()
-    }
+    sdk.deviceCodePollClock = ObservableClock(sleeper: sleeper)
 
-    let clock = ContinuousClock()
-    let start = clock.now
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(60))
     }
@@ -386,49 +381,25 @@ final class PutioSDKAuthTests: XCTestCase {
       Task { await sleeper.abandon() }
     }
     try await sleeper.waitUntilSleeping()
-    task.cancel()
+    let requested = await sleeper.requestedInterval
+    XCTAssertEqual(requested, .seconds(60))
 
+    let clock = ContinuousClock()
+    let cancelled = clock.now
+    task.cancel()
     do {
       _ = try await task.value
       XCTFail("Expected cancellation to propagate")
     } catch is CancellationError {
     }
     XCTAssertEqual(counter.value, 1)
-    XCTAssertLessThan(clock.now - start, .seconds(5), "cancellation must interrupt the sleep")
+    XCTAssertLessThan(clock.now - cancelled, .seconds(2), "cancellation must interrupt the sleep")
   }
 
-  // The shipped sleep primitive, exercised directly. Its entry hook fires synchronously
-  // immediately before `Task.sleep`, so once the test observes entry there is no
-  // suspension point left before the real sleep; cancelling there must interrupt it. The
-  // bound is on the response to cancellation, far below the interval, so an
-  // uncancellable primitive that waits out its interval fails deterministically.
-  func testProductionDeviceCodeSleepIsInterruptedByCancellation() async throws {
-    let entry = SleepEntrySignal()
-    let task = Task {
-      try await PutioSDK.sleepBetweenDeviceCodePolls(.seconds(20), onEntry: entry.markEntered)
-    }
-    defer {
-      task.cancel()
-      entry.abandon()
-    }
-    try await entry.waitUntilEntered()
-
-    let clock = ContinuousClock()
-    let cancelled = clock.now
-    task.cancel()
-    do {
-      try await task.value
-      XCTFail("Expected cancellation to propagate")
-    } catch is CancellationError {
-    }
-    XCTAssertLessThan(
-      clock.now - cancelled, .seconds(2), "production sleep must respond to cancellation")
-  }
-
-  // The full polling loop with no sleeper override, so the interval sleep is the shipped
-  // primitive. The entry observer proves the loop reached that primitive before the
-  // test cancels.
-  func testAwaitDeviceCodeAuthorizationWithDefaultSleeperIsInterruptedByCancellation()
+  // The same loop on a clock that forwards to the real `ContinuousClock` after
+  // reporting entry. The SDK has no code between reaching the clock and the real sleep,
+  // so cancelling after entry can only be answered by the production sleep itself.
+  func testAwaitDeviceCodeAuthorizationContinuousClockSleepIsInterruptedByCancellation()
     async throws
   {
     let counter = PollCounter()
@@ -442,7 +413,7 @@ final class PutioSDKAuthTests: XCTestCase {
       urlSession: makeTestSession()
     )
     let entry = SleepEntrySignal()
-    sdk.deviceCodeSleepEntryObserver = entry.markEntered
+    sdk.deviceCodePollClock = SpyClock(base: ContinuousClock(), onSleep: entry.markEntered)
 
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(20))
@@ -463,7 +434,52 @@ final class PutioSDKAuthTests: XCTestCase {
     }
     XCTAssertEqual(counter.value, 1)
     XCTAssertLessThan(
-      clock.now - cancelled, .seconds(2), "default polling sleep must respond to cancellation")
+      clock.now - cancelled, .seconds(2), "continuous clock sleep must respond to cancellation")
+  }
+
+  // The shipped wiring: the default clock is the continuous clock, and the loop with no
+  // override responds to cancellation during its interval. Entry cannot be observed on
+  // the stdlib clock, so this test only bounds the response; the two tests above carry
+  // the deterministic proof.
+  func testAwaitDeviceCodeAuthorizationDefaultClockIsInterruptedByCancellation() async throws {
+    let counter = PollCounter()
+    try installMockRequestHandler { request in
+      _ = counter.increment()
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    XCTAssertTrue(sdk.deviceCodePollClock is ContinuousClock)
+    let barrier = PollBarrier()
+    sdk.deviceCodePollObserver = { event in
+      if event == .willSleep { await barrier.park() }
+    }
+
+    let task = Task {
+      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(20))
+    }
+    defer {
+      task.cancel()
+      Task { await barrier.abandon() }
+    }
+    try await barrier.waitUntilParked()
+    await barrier.release()
+    try await Task.sleep(for: .milliseconds(300))
+
+    let clock = ContinuousClock()
+    let cancelled = clock.now
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("Expected cancellation to propagate")
+    } catch is CancellationError {
+    }
+    XCTAssertEqual(counter.value, 1)
+    XCTAssertLessThan(
+      clock.now - cancelled, .seconds(2), "default clock sleep must respond to cancellation")
   }
 
   // Cancellation after a poll has produced a result. The SDK parks at `.pollCompleted`
@@ -605,6 +621,12 @@ private actor ObservableSleeper {
   private var sleeper: CheckedContinuation<Void, Error>?
   private var waiter: CheckedContinuation<Void, Error>?
   private var isSleeping = false
+  private(set) var requestedInterval: Duration?
+
+  func sleep(for interval: Duration) async throws {
+    requestedInterval = interval
+    try await sleep()
+  }
 
   func sleep() async throws {
     try await withTaskCancellationHandler {
@@ -710,6 +732,47 @@ private final class SleepEntrySignal: @unchecked Sendable {
     self.waiter = nil
     lock.unlock()
     waiter?.resume(throwing: RendezvousTimeout(stage: "SDK to enter the production sleep"))
+  }
+}
+
+// Test clock whose only behaviour is the observable sleep above. `now` is real time so
+// `sleep(for:)` deadlines are well formed; the duration is recovered from the deadline.
+private struct ObservableClock: Clock {
+  typealias Instant = ContinuousClock.Instant
+  typealias Duration = Swift.Duration
+
+  let sleeper: ObservableSleeper
+  private let base = ContinuousClock()
+
+  var now: Instant { base.now }
+  var minimumResolution: Duration { base.minimumResolution }
+
+  func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+    let interval = deadline - base.now
+    try await sleeper.sleep(for: roundedToSeconds(interval))
+  }
+
+  private func roundedToSeconds(_ duration: Duration) -> Duration {
+    let seconds = (duration.components.seconds, duration.components.attoseconds)
+    return .seconds(seconds.0 + (seconds.1 >= 500_000_000_000_000_000 ? 1 : 0))
+  }
+}
+
+// Forwards to a real clock after reporting entry synchronously, with no suspension
+// point in between.
+private struct SpyClock<Base: Clock>: Clock where Base.Duration == Swift.Duration {
+  typealias Instant = Base.Instant
+  typealias Duration = Swift.Duration
+
+  let base: Base
+  let onSleep: @Sendable () -> Void
+
+  var now: Instant { base.now }
+  var minimumResolution: Duration { base.minimumResolution }
+
+  func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+    onSleep()
+    try await base.sleep(until: deadline, tolerance: tolerance)
   }
 }
 
