@@ -397,8 +397,11 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   // The same loop on a clock that forwards to the real `ContinuousClock` after
-  // reporting entry. The SDK has no code between reaching the clock and the real sleep,
-  // so cancelling after entry can only be answered by the production sleep itself.
+  // reporting entry. This is cancellation-response coverage for the production clock,
+  // not a deterministic proof that cancellation lands mid-sleep: the test may cancel in
+  // the gap between the entry signal and `base.sleep` suspending. The deterministic
+  // mid-sleep proof is the observable-clock test above, where entry is reported from
+  // inside the suspension.
   func testAwaitDeviceCodeAuthorizationContinuousClockSleepIsInterruptedByCancellation()
     async throws
   {
@@ -758,8 +761,9 @@ private struct ObservableClock: Clock {
   }
 }
 
-// Forwards to a real clock after reporting entry synchronously, with no suspension
-// point in between.
+// Forwards to a real clock after reporting entry synchronously. A test observing the
+// signal can still race the subsequent `base.sleep`, so this spies on reach, not on an
+// active suspension.
 private struct SpyClock<Base: Clock>: Clock where Base.Duration == Swift.Duration {
   typealias Instant = Base.Instant
   typealias Duration = Swift.Duration

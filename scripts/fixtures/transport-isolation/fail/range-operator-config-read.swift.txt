@@ -1,0 +1,12 @@
+public final class PutioSDK {
+  func request<T>(as type: T.Type) async throws -> sending T { try await perform(as: type) }
+  @concurrent
+  private func perform<T>(as type: T.Type) async throws -> sending T { try await execute() }
+  @concurrent
+  private func execute() async throws -> Data {
+    let bounds = ...config.clientID.count
+    let open = 0..<delegate.debugDescription.count
+    _ = (bounds, open)
+    return Data()
+  }
+}

@@ -155,8 +155,10 @@ def is_argument_label(text, match):
 
 
 def is_member_access(text, match):
+    """True when the token is preceded by a single member-access dot. The range
+    operators `...` and `..<` also end in a dot but start a fresh expression."""
     before = text[: match.start()].rstrip()
-    return before.endswith(".")
+    return before.endswith(".") and not before.endswith("..")
 
 
 def forbidden_reads(body):
