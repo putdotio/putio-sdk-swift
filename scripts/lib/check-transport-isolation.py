@@ -154,24 +154,21 @@ def is_argument_label(text, match):
     return LABEL_AFTER.match(text, match.end()) is not None
 
 
-# Swift operator characters. A member-access dot is a lone `.` not adjacent to any
-# other operator character; `...`, `..<`, and custom dot-operators such as `.+.`
-# start a fresh expression instead.
-OPERATOR_CHARS = set("./=-+!*%<>&|^~?")
-
-
 def is_member_access(text, match):
-    """True when the token is preceded by a member-access dot: a standalone `.`, or
-    the optional-chaining `?.` / forced-unwrap `!.` forms."""
+    """True when the token is preceded by a member-access dot.
+
+    Instead of enumerating operator characters (Swift allows a wide Unicode set
+    in custom operators), require the dot to follow something that can be a
+    member-access receiver: an identifier or literal character, a closing
+    bracket, a backtick, or `?`/`!` postfix on such a receiver.
+    """
     before = text[: match.start()].rstrip()
     if not before.endswith("."):
         return False
-    if len(before) < 2:
-        return True
-    previous = before[-2]
-    if previous in "?!":
-        return len(before) < 3 or before[-3] not in OPERATOR_CHARS
-    return previous not in OPERATOR_CHARS
+    receiver = before[:-1].rstrip()
+    if receiver.endswith(("?", "!")):
+        receiver = receiver[:-1]
+    return bool(receiver) and (receiver[-1].isalnum() or receiver[-1] in "_)]`\"")
 
 
 def forbidden_reads(body):
