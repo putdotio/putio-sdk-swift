@@ -147,13 +147,45 @@ def line_of(text, offset):
     return text.count("\n", 0, offset) + 1
 
 
+def has_receiver(text, end):
+    """True when `text[:end]` ends in something that can receive a call or
+    subscript: an identifier or literal character, a closing bracket, a backtick,
+    or a `?`/`!` postfix on one of those."""
+    receiver = text[:end].rstrip()
+    if receiver.endswith(("?", "!")):
+        receiver = receiver[:-1].rstrip()
+    return bool(receiver) and (receiver[-1].isalnum() or receiver[-1] in "_)]`\"")
+
+
+def enclosing_open_bracket(text, position):
+    """Index of the unmatched `(` or `[` enclosing `position`, or None."""
+    depth = 0
+    for index in range(position - 1, -1, -1):
+        ch = text[index]
+        if ch in ")]":
+            depth += 1
+        elif ch in "([":
+            if depth == 0:
+                return index
+            depth -= 1
+    return None
+
+
 def is_argument_label(text, match):
     """Argument labels in calls, subscripts, and compound function references such
-    as `f(config: x)`, `s[config: key]`, or `f(config:delegate:)`."""
+    as `f(config: x)`, `s[config: key]`, or `f(config:delegate:)`. Dictionary
+    literal keys look the same but have no receiver before their `[`."""
     before = text[: match.start()].rstrip()
     if not before or before[-1] not in "(,[:":
         return False
-    return LABEL_AFTER.match(text, match.end()) is not None
+    if LABEL_AFTER.match(text, match.end()) is None:
+        return False
+    opener = enclosing_open_bracket(text, match.start())
+    if opener is None:
+        return False
+    if text[opener] == "(":
+        return True
+    return has_receiver(text, opener)
 
 
 def is_member_access(text, match):
@@ -167,11 +199,10 @@ def is_member_access(text, match):
     before = text[: match.start()].rstrip()
     if not before.endswith("."):
         return False
-    receiver = before[:-1].rstrip()
-    if receiver.endswith(("?", "!")):
-        receiver = receiver[:-1].rstrip()
     # A key path with an inferred root (`\.config`) names a member, not SDK state.
-    return bool(receiver) and (receiver[-1].isalnum() or receiver[-1] in "_)]`\"\\")
+    if before[:-1].rstrip().endswith("\\"):
+        return True
+    return has_receiver(before, len(before) - 1)
 
 
 def forbidden_reads(body):
