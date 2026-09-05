@@ -9,8 +9,9 @@ Rules (see docs/ARCHITECTURE.md, "Internal transport isolation"):
   * No `@concurrent` body may use `self.` member access or a bare `config` or
     `delegate` identifier. Argument labels (`config:`) are allowed.
 
-Comments and string literals (including interpolation, multi-line, and raw
-strings) are blanked before parsing so they cannot hide or fake a match.
+Comments and string literal text (including multi-line and raw strings) are
+blanked before parsing so they cannot hide or fake a match. Interpolation
+expressions inside strings are executable Swift and are kept for auditing.
 """
 
 import re
@@ -19,7 +20,7 @@ from pathlib import Path
 
 REQUIRED_CONCURRENT = {"perform", "execute"}
 FORBIDDEN_CONCURRENT = {"request"}
-FORBIDDEN_READ = re.compile(r"(?<![.\w])self\.|(?<![.\w])(?:config|delegate)\b(?!\s*:)")
+FORBIDDEN_READ = re.compile(r"(?<![.\w])self\s*\.|(?<![.\w])(?:config|delegate)\b(?!\s*:)")
 FUNC_DECL = re.compile(r"\bfunc\s+([A-Za-z_]\w*)")
 
 
@@ -27,30 +28,38 @@ def blank(text):
     return "".join("\n" if ch == "\n" else " " for ch in text)
 
 
-def skip_string(source, start, hashes):
-    """Return the index just past the string literal opening at `start` (a quote)."""
+def scan_string(source, start, hashes, out):
+    """Blank the literal text of the string opening at `start` (a quote) into `out`,
+    keeping interpolation expressions verbatim, and return the index past it."""
     n = len(source)
     multiline = source.startswith('"""', start)
     closing = ('"""' if multiline else '"') + "#" * hashes
     escape = "\\" + "#" * hashes
     j = start + (3 if multiline else 1)
+    out.append('"')
     while j < n:
         if source.startswith(escape, j):
             after = j + len(escape)
             if source.startswith("(", after):
                 depth, k = 1, after + 1
+                out.append(" (")
                 while k < n and depth:
-                    if source[k] == '"':
-                        k = skip_string(source, k, 0)
+                    ch = source[k]
+                    if ch == '"':
+                        k = scan_string(source, k, 0, out)
                         continue
-                    depth += (source[k] == "(") - (source[k] == ")")
+                    depth += (ch == "(") - (ch == ")")
+                    out.append(ch)
                     k += 1
                 j = k
             else:
+                out.append("\n" if source[after : after + 1] == "\n" else " ")
                 j = after + 1
             continue
         if source.startswith(closing, j):
+            out.append('"')
             return j + len(closing)
+        out.append("\n" if source[j] == "\n" else " ")
         j += 1
     return n
 
@@ -81,9 +90,7 @@ def strip_comments_and_strings(source):
             while k < n and source[k] == "#":
                 k, hashes = k + 1, hashes + 1
             if k < n and source[k] == '"':
-                j = skip_string(source, k, hashes)
-                out.append('""' + "".join(ch for ch in source[i:j] if ch == "\n"))
-                i = j
+                i = scan_string(source, k, hashes, out)
                 continue
         out.append(source[i])
         i += 1
@@ -130,7 +137,7 @@ def audit(path):
         for match in FORBIDDEN_READ.finditer(body):
             line = line_of(text, k + match.start())
             failures.append(
-                f"line {line}: `{match.group(0).rstrip('.')}` read inside @concurrent `{name}`: {lines[line - 1].strip()}"
+                f"line {line}: `{match.group(0).rstrip(' .')}` read inside @concurrent `{name}`: {lines[line - 1].strip()}"
             )
 
     for name in sorted(FORBIDDEN_CONCURRENT & concurrent.keys()):

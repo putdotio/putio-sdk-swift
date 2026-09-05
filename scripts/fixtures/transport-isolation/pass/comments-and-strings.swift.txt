@@ -12,13 +12,14 @@ public final class PutioSDK {
   private func perform<T>(config requestConfig: PutioSDKConfig, delegateReference: PutioSDKDelegateReference, as type: T.Type) async throws -> sending T {
     // line comment: self.config delegate }
     let sentinel = "}" + "\(requestConfig.baseURL) delegate \"self.config\"" + #"raw "self.delegate" }"#
+    let nested = "outer \(String(describing: "inner \(requestConfig.baseURL) }")) tail"
     let block = """
       self.config delegate }
       """
     let data = try await execute(requestConfig: requestConfig, delegateReference: delegateReference)
     _ = String(decoding: data, as: UTF8.self)
     _ = PutioSDKErrorRequestInformation(config: requestConfig)
-    _ = (sentinel, block)
+    _ = (sentinel, block, nested)
     return try JSONDecoder().decode(type, from: data)
   }
 
