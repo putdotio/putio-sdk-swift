@@ -148,8 +148,10 @@ def line_of(text, offset):
 
 
 def is_argument_label(text, match):
+    """Argument labels in calls, subscripts, and compound function references such
+    as `f(config: x)`, `s[config: key]`, or `f(config:delegate:)`."""
     before = text[: match.start()].rstrip()
-    if not before or before[-1] not in "(,":
+    if not before or before[-1] not in "(,[:":
         return False
     return LABEL_AFTER.match(text, match.end()) is not None
 
@@ -168,7 +170,8 @@ def is_member_access(text, match):
     receiver = before[:-1].rstrip()
     if receiver.endswith(("?", "!")):
         receiver = receiver[:-1].rstrip()
-    return bool(receiver) and (receiver[-1].isalnum() or receiver[-1] in "_)]`\"")
+    # A key path with an inferred root (`\.config`) names a member, not SDK state.
+    return bool(receiver) and (receiver[-1].isalnum() or receiver[-1] in "_)]`\"\\")
 
 
 def forbidden_reads(body):
