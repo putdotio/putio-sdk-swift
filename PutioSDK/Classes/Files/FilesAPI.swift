@@ -11,6 +11,17 @@ extension PutioSDK {
       total: envelope.total)
   }
 
+  public func continueFiles(
+    cursor: String, query: PutioFilesListContinueQuery = PutioFilesListContinueQuery()
+  ) async throws -> PutioFilesListResult {
+    let envelope = try await request(
+      "/files/list/continue", method: .post, query: query.parameters,
+      body: ["cursor": .string(cursor)], as: PutioFilesListEnvelope.self)
+    return PutioFilesListResult(
+      parent: envelope.parent, children: envelope.files, cursor: envelope.cursor,
+      total: envelope.total)
+  }
+
   public func getFile(fileID: Int, query: PutioFileDetailsQuery = PutioFileDetailsQuery())
     async throws -> PutioFile
   {
@@ -94,11 +105,28 @@ public struct PutioFilesListResult {
   public let total: Int?
 }
 
+// Shared by `/files/list` and `/files/list/continue`; the continuation response may
+// omit `parent` and `total`, so both stay optional here.
 private struct PutioFilesListEnvelope: Decodable {
   let parent: PutioFile?
   let files: [PutioFile]
   let cursor: String?
   let total: Int?
+
+  enum CodingKeys: String, CodingKey {
+    case parent
+    case files
+    case cursor
+    case total
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    parent = try container.decodeIfPresent(PutioFile.self, forKey: .parent)
+    files = try container.decodeIfPresent([PutioFile].self, forKey: .files) ?? []
+    cursor = try container.decodeIfPresent(String.self, forKey: .cursor)
+    total = try container.decodeIfPresent(Int.self, forKey: .total)
+  }
 }
 
 private struct PutioFileEnvelope: Decodable {
