@@ -16,6 +16,11 @@ open class PutioAuthCode: Decodable {
   }
 }
 
+public enum PutioDeviceCodeAuthorization: Equatable, Sendable {
+  case authorized(token: String)
+  case expired
+}
+
 open class PutioTokenValidationResult: Decodable {
   open var result: Bool
   open var tokenID: Int?

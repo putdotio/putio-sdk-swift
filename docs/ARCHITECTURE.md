@@ -112,6 +112,7 @@ language mode 5.
 - `auth`
   - `getAuthCode`
   - `checkAuthCodeMatch`
+  - `awaitDeviceCodeAuthorization` polling until the code is approved, expired as a typed state, or cancelled
   - `logout`
   - `validateToken`
   - `generateTOTP`
