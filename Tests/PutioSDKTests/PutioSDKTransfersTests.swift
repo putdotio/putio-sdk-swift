@@ -9,8 +9,7 @@ final class PutioSDKTransfersTests: XCTestCase {
   }
 
   func testTransfersEndpointsDecodeResponsesAndBuildExpectedRequests() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       switch request.url?.path {
       case "/v2/transfers/list":
         let components = URLComponents(

@@ -8,7 +8,7 @@ final class PutioSDKPublicSurfaceTests: XCTestCase {
   }
 
   func testPublicInitializerAcceptsCustomURLSession() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/config")
       return (
         makeHTTPResponse(for: request, statusCode: 200),
@@ -51,8 +51,7 @@ final class PutioSDKPublicSurfaceTests: XCTestCase {
   }
 
   func testVideoPlaybackResolverIsAvailableToPackageConsumers() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42")
       let payload = """
         {
@@ -88,8 +87,7 @@ final class PutioSDKPublicSurfaceTests: XCTestCase {
   }
 
   func testOptionalNextFileIsAvailableToPackageConsumers() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/next-file")
       return (
         makeHTTPResponse(for: request, statusCode: 200),

@@ -9,7 +9,6 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testOptionalNextFileMapsSuccessorAndAbsence() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     var responses = [
       """
       {
@@ -22,7 +21,7 @@ final class PutioSDKFilesTests: XCTestCase {
       """,
       #"{"next_file":null}"#,
     ]
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/next-file")
       let components = URLComponents(
         url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)
@@ -47,8 +46,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testOptionalNextFileRejectsMissingEnvelopeKey() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/next-file")
       return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{}"#.utf8))
     }
@@ -69,8 +67,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testFilesAndMediaEndpointsDecodeResponsesAndBuildExpectedRequests() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       switch request.url?.path {
       case "/v2/files/list":
         let components = URLComponents(
@@ -212,6 +209,34 @@ final class PutioSDKFilesTests: XCTestCase {
       case "/v2/files/remove-sort-by-settings":
         XCTAssertEqual(request.httpMethod, "POST")
         return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"status":"OK"}"#.utf8))
+      case "/v2/files/list/continue":
+        XCTAssertEqual(request.httpMethod, "POST")
+        let components = URLComponents(
+          url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)
+        XCTAssertNil(components?.queryItems?.first(where: { $0.name == "cursor" }))
+        XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "per_page" })?.value, "10")
+        let body = try XCTUnwrap(requestBodyData(for: request))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+        XCTAssertEqual(json["cursor"], "next-page")
+        XCTAssertNil(json["per_page"])
+        let payload = """
+          {
+            "cursor": null,
+            "files": [
+              {
+                "id": 44,
+                "name": "Episode 4.mkv",
+                "size": 100,
+                "created_at": "2026-04-20T10:00:00Z",
+                "updated_at": "2026-04-20T10:00:00Z",
+                "file_type": "VIDEO",
+                "parent_id": 7
+              }
+            ],
+            "status": "OK"
+          }
+          """
+        return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
       case "/v2/files/search/continue":
         XCTAssertEqual(request.httpMethod, "POST")
         let components = URLComponents(
@@ -279,6 +304,8 @@ final class PutioSDKFilesTests: XCTestCase {
     let nextFile = try await sdk.findNextFile(fileID: 42, fileType: .video)
     let sorted = try await sdk.setSortBy(fileId: 42, sortBy: "NAME_ASC")
     let resetSort = try await sdk.resetFileSpecificSortSettings()
+    let continuedFiles = try await sdk.continueFiles(
+      cursor: "next-page", query: PutioFilesListContinueQuery(perPage: 10))
     let continuedSearch = try await sdk.continueFileSearch(
       cursor: "search-page-2", query: PutioFileSearchContinueQuery(perPage: 10))
     let startedConversion = try await sdk.startMp4Conversion(fileID: 42)
@@ -292,6 +319,10 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(listed.children.first?.startFrom, 91)
     XCTAssertEqual(listed.cursor, "next-page")
     XCTAssertEqual(listed.total, 1)
+    XCTAssertEqual(continuedFiles.children.map(\.id), [44])
+    XCTAssertNil(continuedFiles.cursor)
+    XCTAssertNil(continuedFiles.parent)
+    XCTAssertNil(continuedFiles.total)
     XCTAssertEqual(file.id, 42)
     XCTAssertEqual(folder.name, "Season 2")
     XCTAssertEqual(deleted.cursor, "after-delete")
@@ -312,8 +343,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceBuildsAuthenticatedHLSURLAndMapsStartFrom() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/custom/v2/files/42")
       XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token token / value")
 
@@ -358,10 +388,9 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceUsesOneConfigSnapshotAcrossSuspension() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     let requestStarted = expectation(description: "metadata request started")
     let allowResponse = expectation(description: "metadata response allowed")
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.host, "old.example.test")
       XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token old-token")
       requestStarted.fulfill()
@@ -409,8 +438,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceReportsConversionRequired() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/43")
       return (
         makeHTTPResponse(for: request, statusCode: 200),
@@ -429,8 +457,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceRejectsNonVideoWithTypedRecovery() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/44")
       return (
         makeHTTPResponse(for: request, statusCode: 200),
@@ -456,8 +483,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourcePreservesTypedAPIErrors() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/404")
       return (
         makeHTTPResponse(for: request, statusCode: 404),
@@ -482,8 +508,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourcePreservesTypedTransportErrors() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/45")
       throw URLError(.notConnectedToInternet)
     }
@@ -505,14 +530,13 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceRejectsMissingRequiredVideoState() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     let cases = [
       (fileID: 46, providedState: #""start_from": 0"#),
       (fileID: 47, providedState: #""need_convert": false"#),
     ]
 
     for testCase in cases {
-      MockURLProtocol.requestHandler = { request in
+      try installMockRequestHandler { request in
         XCTAssertEqual(request.url?.path, "/v2/files/\(testCase.fileID)")
         let payload = """
           {
@@ -543,14 +567,13 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceRejectsInvalidStartFromValues() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     let cases = [
       (fileID: 48, startFrom: "-1"),
       (fileID: 49, startFrom: "1e100"),
     ]
 
     for testCase in cases {
-      MockURLProtocol.requestHandler = { request in
+      try installMockRequestHandler { request in
         XCTAssertEqual(request.url?.path, "/v2/files/\(testCase.fileID)")
         let payload = """
           {
@@ -582,8 +605,7 @@ final class PutioSDKFilesTests: XCTestCase {
   }
 
   func testResolveVideoPlaybackSourceAcceptsIntMaxStartFrom() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/50")
       let payload = """
         {
@@ -731,10 +753,35 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(metadata.aspectRatio, 0)
     XCTAssertEqual(rootFile.id, 0)
     XCTAssertEqual(rootFile.updatedAt, rootFile.createdAt)
-    XCTAssertNoThrow(try PutioSDKDateParser.parse("2026-04-23T19:08:48.356333"))
-    XCTAssertNoThrow(try PutioSDKDateParser.parse("2026-04-23T19:08:48.356333Z"))
+    for value in ["2026-04-23T19:08:48.356333", "2026-04-23T19:08:48.356333Z"] {
+      XCTAssertEqual(
+        try PutioSDKDateParser.parse(value).timeIntervalSince1970, 1_776_971_328.356333,
+        accuracy: 0.001)
+    }
     XCTAssertThrowsError(try PutioSDKDateParser.parse(nil))
     XCTAssertThrowsError(try PutioSDKDateParser.parse("not-a-date"))
+  }
+
+  func testFileDatesDecodeIndependentlyAndRejectInvalidCreationDates() throws {
+    let decoder = JSONDecoder()
+    for id in [0, 42] {
+      for createdAt in ["2026-04-23T19:08:48Z", "2026-04-23T19:08:48.356333"] {
+        let data = Data(
+          """
+          {"id": \(id), "name": "file", "file_type": "VIDEO",
+           "created_at": "\(createdAt)", "updated_at": "2026-04-24T19:08:48Z"}
+          """.utf8)
+        let file = try decoder.decode(PutioFile.self, from: data)
+        XCTAssertEqual(file.createdAt, try PutioSDKDateParser.parse(createdAt))
+        XCTAssertEqual(file.updatedAt.timeIntervalSince1970, 1_777_057_728)
+      }
+      let invalid = Data(
+        """
+        {"id": \(id), "name": "file", "file_type": "VIDEO",
+         "created_at": "not-a-date", "updated_at": "2026-04-24T19:08:48Z"}
+        """.utf8)
+      XCTAssertThrowsError(try decoder.decode(PutioFile.self, from: invalid))
+    }
   }
 
   func testTypedFileInputsBuildExpectedParameters() {

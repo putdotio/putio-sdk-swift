@@ -76,16 +76,22 @@ with an immutable scoped API requires a deliberate major release.
 
 ### Internal transport isolation
 
-`PutioSDK.request` and its private `execute` helper (`PutioSDK/Classes/PutioSDK.swift`)
-are marked `@concurrent`. Without that attribute, `NonisolatedNonsendingByDefault`
-would make the shared transport inherit the caller's isolation like any other
-async SDK method, which would run `JSONDecoder`/`JSONEncoder` work and
+`PutioSDK.request` (`PutioSDK/Classes/PutioSDK.swift`) runs on the caller's
+actor and snapshots the mutable `config` and `delegate` into values before
+handing off to the private `@concurrent` `perform`/`execute` helpers. Without
+that attribute, `NonisolatedNonsendingByDefault` would make the shared
+transport inherit the caller's isolation like any other async SDK method, which
+would run `JSONDecoder`/`JSONEncoder` work and
 `PutioSDKDelegate.onPutioSDKError` callbacks on a `@MainActor` consumer's main
-thread. `@concurrent` keeps that CPU work on the global executor instead,
-matching the SDK's pre-PR behavior, while the public domain methods that call
-into `request` keep SE-0461's caller-isolated semantics. The delegate-callback
-isolation contract is unchanged by this PR: callbacks arrive off the caller's
-actor, never inline on it.
+thread. `@concurrent` keeps that CPU work on the global executor, while the
+public domain methods that call into `request` keep SE-0461's caller-isolated
+semantics. The `@concurrent` bodies never read `self.config`: the library
+target compiles in Swift 5 mode, so an off-actor read there would race
+`setToken`/`clearToken` without a compiler diagnostic. The delegate crosses the
+hop as a weak reference, so an in-flight request never extends its lifetime;
+swapping the delegate mid-request still delivers that request's failure to the
+delegate that was set when it started. Delegate callbacks arrive off the
+caller's actor, never inline on it.
 
 `PutioSDKStrictConcurrencyTests` is a Swift 6 consumer target. It compile-checks
 all SDK domains from `@MainActor`, proves an actor-owned client, and requires the
@@ -129,6 +135,7 @@ language mode 5.
   - `deleteHistoryEvent`
 - `files`
   - `getFiles`
+  - `continueFiles`
   - `getFile`
   - `searchFiles`
   - `continueFileSearch`
@@ -176,7 +183,7 @@ language mode 5.
 | Auth and OAuth | `covered` |
 | Account basics and settings | `covered` |
 | Security and 2FA | `covered` |
-| Files browse and detail | `covered` |
+| Files browse and detail with cursor continuation | `covered` |
 | Search with cursor continuation | `covered` |
 | Transfers | `covered` |
 | History and events | `covered` |
@@ -184,7 +191,7 @@ language mode 5.
 | Subtitles | `covered` |
 | Playback-adjacent helpers | `covered` |
 
-Typed query inputs exist for account info, account settings updates, file listing, file detail projections, file search and continuation, transfer listing, and trash listing. Cursor or continuation flows stay explicit where the backend exposes them.
+Typed query inputs exist for account info, account settings updates, file listing and continuation, file detail projections, file search and continuation, transfer listing, and trash listing. Cursor or continuation flows stay explicit where the backend exposes them.
 
 ## What This Package Is Not
 

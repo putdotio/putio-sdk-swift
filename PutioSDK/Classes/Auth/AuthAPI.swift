@@ -131,14 +131,16 @@ extension PutioSDK {
   }
 
   public func checkAuthCodeMatch(code: String) async throws -> String? {
-    try await checkAuthCodeMatch(code: code, notifiesDelegate: true)
+    try await checkAuthCodeMatch(code: code, isExpectedFailure: { _ in false })
   }
 
-  private func checkAuthCodeMatch(code: String, notifiesDelegate: Bool) async throws -> String? {
+  private func checkAuthCodeMatch(
+    code: String, isExpectedFailure: @escaping @Sendable (PutioSDKError) -> Bool
+  ) async throws -> String? {
     let envelope = try await request(
       "/oauth2/oob/code/\(code)",
       headers: ["Authorization": ""],
-      notifiesDelegate: notifiesDelegate,
+      isExpectedFailure: isExpectedFailure,
       as: PutioOAuthTokenEnvelope.self
     )
     return envelope.oauthToken
@@ -151,7 +153,7 @@ extension PutioSDK {
   /// once it is unknown or expired, so expiry surfaces as `.expired` instead of a
   /// raw not-found error, and that expected 404 is not reported to `delegate`. Any
   /// other transport or API failure is rethrown unchanged and reaches the delegate
-  /// as usual.
+  /// from the transport's global executor as usual.
   ///
   /// Cancelling the calling task surfaces as `CancellationError` at the next
   /// cancellation point: before each poll, after it completes, during the sleep between
@@ -171,19 +173,15 @@ extension PutioSDK {
 
       let authorization: PutioDeviceCodeAuthorization?
       do {
-        if let token = try await checkAuthCodeMatch(code: code, notifiesDelegate: false) {
+        if let token = try await checkAuthCodeMatch(code: code, isExpectedFailure: \.isNotFound) {
           authorization = .authorized(token: token)
         } else {
           authorization = nil
         }
       } catch let error as PutioSDKError where error.isNotFound {
         authorization = .expired
-      } catch let error as PutioSDKError {
-        if Task.isCancelled {
-          throw CancellationError()
-        }
-        delegate?.onPutioSDKError(error: error)
-        throw error
+      } catch let error as PutioSDKError where Task.isCancelled {
+        throw CancellationError()
       }
 
       try Task.checkCancellation()

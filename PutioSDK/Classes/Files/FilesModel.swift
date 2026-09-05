@@ -140,9 +140,10 @@ open class PutioFile: PutioBaseFile {
     self.isShared = try container.decodeIfPresent(Bool.self, forKey: .isShared) ?? false
 
     let id = try baseContainer.decode(Int.self, forKey: .id)
-    let createdAt = try PutioSDKDateParser.decodeDate(forKey: .createdAt, from: baseContainer)
+    let createdAt =
+      id == 0 ? try PutioSDKDateParser.decodeDate(forKey: .createdAt, from: baseContainer) : nil
     let updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
-    self.updatedAt = try PutioSDKDateParser.parse(updatedAt, fallback: id == 0 ? createdAt : nil)
+    self.updatedAt = try PutioSDKDateParser.parse(updatedAt, fallback: createdAt)
 
     let folderType = try container.decodeIfPresent(String.self, forKey: .folderType) ?? ""
     self.isSharedRoot = folderType == "SHARED_ROOT"
@@ -261,6 +262,20 @@ public struct PutioFilesListQuery: Sendable {
     if let fileType { query["file_type"] = .string(fileType.rawValue) }
     if let sortBy { query["sort_by"] = .string(sortBy) }
     if mp4Status { query["mp4_status"] = 1 }
+    return query
+  }
+}
+
+public struct PutioFilesListContinueQuery: Sendable {
+  public let perPage: Int?
+
+  public init(perPage: Int? = nil) {
+    self.perPage = perPage
+  }
+
+  var parameters: PutioRequestParameters {
+    var query: PutioRequestParameters = [:]
+    if let perPage { query["per_page"] = .integer(perPage) }
     return query
   }
 }

@@ -83,10 +83,9 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   func testAuthAndTwoFactorEndpointsDecodeTypedResponses() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     var seenPaths: [String] = []
 
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       let path = request.url?.path ?? ""
       seenPaths.append(path)
 
@@ -238,7 +237,7 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   func testCheckAuthCodeMatchReturnsNilWhileCodeIsPending() async throws {
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/oauth2/oob/code/PENDING")
       XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
       return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
@@ -256,8 +255,7 @@ final class PutioSDKAuthTests: XCTestCase {
 
   func testAwaitDeviceCodeAuthorizationPollsUntilTokenArrives() async throws {
     let counter = PollCounter()
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/oauth2/oob/code/PENDING")
       XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
       let attempt = counter.increment()
@@ -278,8 +276,7 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   func testAwaitDeviceCodeAuthorizationSurfacesExpiryAsTypedState() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/oauth2/oob/code/STALE")
       return (
         makeHTTPResponse(for: request, statusCode: 404),
@@ -303,9 +300,8 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   func testAwaitDeviceCodeAuthorizationClampsPollIntervalToOneSecond() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
     let counter = PollCounter()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       let attempt = counter.increment()
       let payload = attempt < 2 ? #"{"oauth_token":null}"# : #"{"oauth_token":"tv-token"}"#
       return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
@@ -338,8 +334,7 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   func testAwaitDeviceCodeAuthorizationRethrowsOtherFailures() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       (makeHTTPResponse(for: request, statusCode: 500), Data(#"{"status":"ERROR"}"#.utf8))
     }
 
@@ -362,8 +357,7 @@ final class PutioSDKAuthTests: XCTestCase {
 
   func testAwaitDeviceCodeAuthorizationStopsWhenCancelled() async throws {
     let counter = PollCounter()
-    try skipUnlessURLProtocolMockingIsSupported()
-    MockURLProtocol.requestHandler = { request in
+    try installMockRequestHandler { request in
       _ = counter.increment()
       return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
     }
@@ -390,21 +384,24 @@ final class PutioSDKAuthTests: XCTestCase {
   }
 
   func testAwaitDeviceCodeAuthorizationDiscardsResultWhenCancelledMidPoll() async throws {
-    try skipUnlessURLProtocolMockingIsSupported()
-    let task = Task {
-      let sdk = PutioSDK(
-        config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
-        urlSession: makeTestSession()
-      )
-      return try await sdk.awaitDeviceCodeAuthorization(code: "READY", pollInterval: .seconds(60))
-    }
-    MockURLProtocol.requestHandler = { request in
+    // The handler is installed before the polling task exists, and it looks the task up
+    // through a box, so the first request can never race a missing handler.
+    let pollingTask = TaskBox<PutioDeviceCodeAuthorization>()
+    try installMockRequestHandler { request in
       // Cancel while the poll is producing a success, so the result is already in hand
       // when the method reaches its post-poll cancellation check.
-      task.cancel()
+      pollingTask.cancel()
       return (
         makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":"tv-token"}"#.utf8)
       )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let task = pollingTask.start {
+      try await sdk.awaitDeviceCodeAuthorization(code: "READY", pollInterval: .seconds(60))
     }
 
     do {
@@ -468,5 +465,29 @@ private final class RecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
     lock.lock()
     recorded.append(error)
     lock.unlock()
+  }
+}
+
+private final class TaskBox<Success: Sendable>: @unchecked Sendable {
+  private let lock = NSLock()
+  private var task: Task<Success, Error>?
+  private var cancelRequested = false
+
+  func start(_ operation: @escaping @Sendable () async throws -> Success) -> Task<Success, Error> {
+    lock.lock()
+    defer { lock.unlock() }
+    let task = Task(operation: operation)
+    self.task = task
+    if cancelRequested {
+      task.cancel()
+    }
+    return task
+  }
+
+  func cancel() {
+    lock.lock()
+    defer { lock.unlock() }
+    cancelRequested = true
+    task?.cancel()
   }
 }

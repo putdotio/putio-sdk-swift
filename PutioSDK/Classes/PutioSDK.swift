@@ -29,12 +29,13 @@ public final class PutioSDK {
     self.config.token = ""
   }
 
-  // Runs off the caller's actor (see docs/ARCHITECTURE.md#swift-concurrency-posture):
-  // `NonisolatedNonsendingByDefault` would otherwise inherit the caller's isolation for
-  // this async body, forcing JSON encode/decode and delegate callbacks onto a `@MainActor`
-  // consumer's main thread. `@concurrent` keeps that work on the global executor, matching
-  // pre-PR behavior, while the public domain methods that call into this stay caller-isolated.
-  @concurrent
+  // Snapshots the mutable client state on the caller's actor before hopping to the
+  // global executor. `config` and `delegate` are plain stored properties mutated by
+  // `setToken`/`clearToken` and consumers on the owning actor; reading them inside the
+  // `@concurrent` body below would race those writes (see #52), and the library target
+  // compiles in Swift 5 mode, so the compiler would not catch it. The delegate crosses
+  // the hop as a weak reference so an in-flight request never extends its lifetime;
+  // a delegate swapped mid-request still receives that request's failure if it is alive.
   func request<T: Decodable>(
     _ url: String,
     method: PutioHTTPMethod = .get,
@@ -42,7 +43,7 @@ public final class PutioSDK {
     query: PutioRequestParameters = [:],
     body: PutioRequestParameters = [:],
     apiConfig: PutioSDKConfig? = nil,
-    notifiesDelegate: Bool = true,
+    isExpectedFailure: @escaping @Sendable (PutioSDKError) -> Bool = { _ in false },
     as type: T.Type
   ) async throws -> sending T {
     let requestConfig = PutioSDKRequestConfig(
@@ -53,7 +54,25 @@ public final class PutioSDK {
       query: query,
       body: body
     )
-    let data = try await execute(requestConfig: requestConfig, notifiesDelegate: notifiesDelegate)
+    return try await perform(
+      requestConfig: requestConfig,
+      delegate: PutioSDKDelegateReference(delegate, isExpectedFailure: isExpectedFailure),
+      as: type)
+  }
+
+  // Runs off the caller's actor (see docs/ARCHITECTURE.md#swift-concurrency-posture):
+  // `NonisolatedNonsendingByDefault` would otherwise inherit the caller's isolation for
+  // this async body, forcing JSON encode/decode and delegate callbacks onto a `@MainActor`
+  // consumer's main thread. `@concurrent` keeps that work on the global executor while the
+  // public domain methods that call into `request` stay caller-isolated. Only the value
+  // snapshot taken in `request` crosses the hop; `self.config` is never read here.
+  @concurrent
+  private func perform<T: Decodable>(
+    requestConfig: PutioSDKRequestConfig,
+    delegate: PutioSDKDelegateReference,
+    as type: T.Type
+  ) async throws -> sending T {
+    let data = try await execute(requestConfig: requestConfig, delegate: delegate)
 
     do {
       return try JSONDecoder().decode(type, from: data)
@@ -61,18 +80,16 @@ public final class PutioSDK {
       let apiError = PutioSDKError(
         request: PutioSDKErrorRequestInformation(config: requestConfig), decodingError: error,
         responseBody: String(decoding: data, as: UTF8.self))
-      if notifiesDelegate { delegate?.onPutioSDKError(error: apiError) }
+      delegate.notify(apiError)
       throw apiError
     }
   }
 
   // Stays off the caller's actor for the same reason as `request` above: keeps the
   // network round trip and error-envelope decode/delegate callback on the global executor.
-  // `notifiesDelegate: false` lets a caller own an expected failure (for example the
-  // device-code 404 that means "expired") without it reaching the global error delegate.
   @concurrent
-  private func execute(requestConfig: PutioSDKRequestConfig, notifiesDelegate: Bool) async throws
-    -> Data
+  private func execute(requestConfig: PutioSDKRequestConfig, delegate: PutioSDKDelegateReference)
+    async throws -> Data
   {
     let requestInformation = PutioSDKErrorRequestInformation(config: requestConfig)
     let urlRequest = try buildURLRequest(from: requestConfig)
@@ -84,14 +101,14 @@ public final class PutioSDK {
       (data, response) = try await urlSession.data(for: urlRequest)
     } catch {
       let apiError = PutioSDKError(request: requestInformation, error: error)
-      if notifiesDelegate { delegate?.onPutioSDKError(error: apiError) }
+      delegate.notify(apiError)
       throw apiError
     }
 
     guard let httpResponse = response as? HTTPURLResponse else {
       let apiError = PutioSDKError(
         request: requestInformation, unknownError: URLError(.badServerResponse))
-      if notifiesDelegate { delegate?.onPutioSDKError(error: apiError) }
+      delegate.notify(apiError)
       throw apiError
     }
 
@@ -107,7 +124,7 @@ public final class PutioSDK {
         underlyingError: URLError(.badServerResponse),
         responseBody: body
       )
-      if notifiesDelegate { delegate?.onPutioSDKError(error: apiError) }
+      delegate.notify(apiError)
       throw apiError
     }
 
@@ -139,5 +156,29 @@ public final class PutioSDK {
     }
 
     return request
+  }
+}
+
+// Carries the delegate across the executor hop without retaining it. Created on the
+// caller's actor and only read afterwards, so the weak load is the sole cross-thread
+// access and the Swift runtime performs it atomically. `isExpectedFailure` lets a
+// caller own a failure it will translate into a typed result (for example the
+// device-code 404 that means "expired"); every other failure still reaches the
+// delegate from the global executor, never on the caller's actor.
+final class PutioSDKDelegateReference {
+  private weak var delegate: PutioSDKDelegate?
+  private let isExpectedFailure: @Sendable (PutioSDKError) -> Bool
+
+  init(
+    _ delegate: PutioSDKDelegate?,
+    isExpectedFailure: @escaping @Sendable (PutioSDKError) -> Bool = { _ in false }
+  ) {
+    self.delegate = delegate
+    self.isExpectedFailure = isExpectedFailure
+  }
+
+  func notify(_ error: PutioSDKError) {
+    guard !isExpectedFailure(error) else { return }
+    delegate?.onPutioSDKError(error: error)
   }
 }
