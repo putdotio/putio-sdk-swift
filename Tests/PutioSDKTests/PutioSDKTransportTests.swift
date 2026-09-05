@@ -66,6 +66,43 @@ final class PutioSDKTransportTests: XCTestCase {
     XCTAssertTrue(account.settings.historyEnabled)
   }
 
+  // Companion to #52: the delegate crosses the executor hop as a weak reference, so a
+  // delegate released while a request is in flight is neither kept alive nor called.
+  // The config snapshot itself has no deterministic unit proof: the mock transport only
+  // observes a request after the SDK has already read `config`, so an ordering test
+  // cannot distinguish the on-actor snapshot from the old off-actor read.
+  func testInFlightRequestDoesNotRetainReleasedDelegate() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    let gate = RequestGate()
+    MockURLProtocol.requestHandler = { request in
+      gate.markRequestStarted()
+      try gate.waitUntilReleased()
+      return (makeHTTPResponse(for: request, statusCode: 500), Data(#"{"status":"ERROR"}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+    var delegate: RecordingDelegate? = RecordingDelegate()
+    weak var weakDelegate = delegate
+    sdk.delegate = delegate
+
+    async let response = sdk.logout()
+    try gate.waitUntilRequestStarted()
+    delegate = nil
+    XCTAssertNil(weakDelegate, "in-flight request must not retain the delegate")
+    gate.release()
+
+    do {
+      _ = try await response
+      XCTFail("Expected HTTP 500 to surface as an error")
+    } catch let error as PutioSDKError {
+      XCTAssertEqual(error.statusCode, 500)
+    }
+    XCTAssertNil(sdk.delegate)
+  }
+
   func testGetFileSurfacesTypedHttpErrors() async throws {
     MockURLProtocol.requestHandler = { request in
       let payload = """
@@ -230,4 +267,39 @@ final class PutioSDKTransportTests: XCTestCase {
 
     XCTAssertEqual(response.status, "OK")
   }
+}
+
+private final class RequestGate: @unchecked Sendable {
+  private let started = DispatchSemaphore(value: 0)
+  private let released = DispatchSemaphore(value: 0)
+  private let timeout: DispatchTimeInterval = .seconds(5)
+
+  func markRequestStarted() {
+    started.signal()
+  }
+
+  func waitUntilRequestStarted() throws {
+    guard started.wait(timeout: .now() + timeout) == .success else {
+      throw RequestGateTimeout(stage: "request start")
+    }
+  }
+
+  func waitUntilReleased() throws {
+    guard released.wait(timeout: .now() + timeout) == .success else {
+      throw RequestGateTimeout(stage: "release")
+    }
+  }
+
+  func release() {
+    released.signal()
+  }
+}
+
+private struct RequestGateTimeout: Error, CustomStringConvertible {
+  let stage: String
+  var description: String { "RequestGate timed out waiting for \(stage)" }
+}
+
+private final class RecordingDelegate: PutioSDKDelegate {
+  func onPutioSDKError(error: PutioSDKError) {}
 }
