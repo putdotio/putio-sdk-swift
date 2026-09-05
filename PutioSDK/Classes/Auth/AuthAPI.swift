@@ -145,23 +145,33 @@ extension PutioSDK {
   /// The backend answers `oauth_token: null` while the code is pending and HTTP 404
   /// once it is unknown or expired, so expiry surfaces as `.expired` instead of a
   /// raw not-found error. Any other transport or API failure is rethrown unchanged.
-  /// Cancelling the calling task always surfaces as `CancellationError`, whether it
-  /// lands during the sleep between polls or while a poll request is in flight
-  /// (URLSession reports the latter as `URLError.cancelled`, which is normalized here).
+  /// Cancelling the calling task surfaces as `CancellationError` at the next
+  /// cancellation point: before each poll, after it completes, during the sleep between
+  /// polls, or while a poll request is in flight (URLSession reports the latter as
+  /// `URLError.cancelled`, which is normalized here). A poll that has already produced
+  /// a result when cancellation arrives is discarded in favour of `CancellationError`.
   public func awaitDeviceCodeAuthorization(
     code: String, pollInterval: Duration = .seconds(3)
   ) async throws -> PutioDeviceCodeAuthorization {
     while true {
       try Task.checkCancellation()
 
+      let authorization: PutioDeviceCodeAuthorization?
       do {
         if let token = try await checkAuthCodeMatch(code: code) {
-          return .authorized(token: token)
+          authorization = .authorized(token: token)
+        } else {
+          authorization = nil
         }
       } catch let error as PutioSDKError where error.isNotFound {
-        return .expired
+        authorization = .expired
       } catch let error as PutioSDKError where Task.isCancelled && error.isNetworkFailure {
         throw CancellationError()
+      }
+
+      try Task.checkCancellation()
+      if let authorization {
+        return authorization
       }
 
       try await Task.sleep(for: pollInterval)

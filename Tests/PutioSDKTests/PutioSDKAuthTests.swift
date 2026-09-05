@@ -346,6 +346,31 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertEqual(counter.value, 1)
   }
 
+  func testAwaitDeviceCodeAuthorizationDiscardsResultWhenCancelledMidPoll() async throws {
+    try skipUnlessURLProtocolMockingIsSupported()
+    let task = Task {
+      let sdk = PutioSDK(
+        config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+        urlSession: makeTestSession()
+      )
+      return try await sdk.awaitDeviceCodeAuthorization(code: "READY", pollInterval: .seconds(60))
+    }
+    MockURLProtocol.requestHandler = { request in
+      // Cancel while the poll is producing a success, so the result is already in hand
+      // when the method reaches its post-poll cancellation check.
+      task.cancel()
+      return (
+        makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":"tv-token"}"#.utf8)
+      )
+    }
+
+    do {
+      let authorization = try await task.value
+      XCTFail("Expected cancellation to win over \(authorization)")
+    } catch is CancellationError {
+    }
+  }
+
   func testAuthModelsDecodeGracefulDefaults() throws {
     let decoder = JSONDecoder()
 
