@@ -355,9 +355,10 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertEqual(delegate.errors.map(\.statusCode), [500])
   }
 
-  // Cancellation during the sleep between polls. The SDK parks at its `.willSleep`
-  // boundary, the test cancels there, and the elapsed bound proves `Task.sleep` gave up
-  // immediately instead of waiting out the 60s interval.
+  // Cancellation during the sleep between polls. The interval sleep runs on a test
+  // clock that signals once the SDK is actually suspended inside `sleep`; the test
+  // cancels at that point. A sleeper that cannot be interrupted would keep the task
+  // alive until the 60s interval elapsed and trip the elapsed bound.
   func testAwaitDeviceCodeAuthorizationStopsWhenCancelledDuringSleep() async throws {
     let counter = PollCounter()
     try installMockRequestHandler { request in
@@ -369,9 +370,10 @@ final class PutioSDKAuthTests: XCTestCase {
       config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
       urlSession: makeTestSession()
     )
-    let barrier = PollBarrier()
-    sdk.deviceCodePollObserver = { event in
-      if event == .willSleep { await barrier.park() }
+    let sleeper = ObservableSleeper()
+    sdk.deviceCodePollSleeper = { interval in
+      XCTAssertEqual(interval, .seconds(60))
+      try await sleeper.sleep()
     }
 
     let clock = ContinuousClock()
@@ -379,9 +381,8 @@ final class PutioSDKAuthTests: XCTestCase {
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(60))
     }
-    await barrier.waitUntilParked()
+    await sleeper.waitUntilSleeping()
     task.cancel()
-    await barrier.release()
 
     do {
       _ = try await task.value
@@ -520,6 +521,51 @@ private final class RecordingDelegate: PutioSDKDelegate, @unchecked Sendable {
 // Suspending rendezvous between a test and the SDK's poll observer. `park` suspends the
 // SDK until `release`; `waitUntilParked` suspends the test until the SDK has parked.
 // Everything suspends rather than blocking, so no cooperative-pool thread is held.
+// Stand-in for `Task.sleep` that reports when the SDK is actually suspended inside it
+// and honours cancellation the same way `Task.sleep` does: the continuation resumes
+// with `CancellationError` when the sleeping task is cancelled, never on its own.
+private actor ObservableSleeper {
+  private var sleeper: CheckedContinuation<Void, Error>?
+  private var waiter: CheckedContinuation<Void, Never>?
+  private var isSleeping = false
+
+  func sleep() async throws {
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation {
+        (continuation: CheckedContinuation<Void, Error>) in
+        sleeper = continuation
+        isSleeping = true
+        waiter?.resume()
+        waiter = nil
+        // Like a real interval, the sleep eventually ends on its own. Long enough to
+        // trip the test's elapsed bound, short enough that a regression fails instead
+        // of hanging the suite.
+        Task {
+          try? await Task.sleep(for: .seconds(6))
+          await self.finish()
+        }
+      }
+    } onCancel: {
+      Task { await self.cancel() }
+    }
+  }
+
+  private func finish() {
+    sleeper?.resume()
+    sleeper = nil
+  }
+
+  func waitUntilSleeping() async {
+    if isSleeping { return }
+    await withCheckedContinuation { waiter = $0 }
+  }
+
+  private func cancel() {
+    sleeper?.resume(throwing: CancellationError())
+    sleeper = nil
+  }
+}
+
 private actor PollBarrier {
   private var parked: CheckedContinuation<Void, Never>?
   private var waiter: CheckedContinuation<Void, Never>?

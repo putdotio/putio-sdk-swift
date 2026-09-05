@@ -191,7 +191,7 @@ extension PutioSDK {
       }
 
       await deviceCodePollObserver?(.willSleep)
-      try await Task.sleep(for: interval)
+      try await deviceCodePollSleeper(interval)
     }
   }
 

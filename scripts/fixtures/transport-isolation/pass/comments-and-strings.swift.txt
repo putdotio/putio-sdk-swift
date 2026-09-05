@@ -19,6 +19,9 @@ public final class PutioSDK {
     let data = try await execute(requestConfig: requestConfig, delegateReference: delegateReference)
     _ = String(decoding: data, as: UTF8.self)
     _ = PutioSDKErrorRequestInformation(config: requestConfig)
+    _ = "\(/* ) */ requestConfig.baseURL) \(String(describing: requestConfig.baseURL, config: 1))"
+    _ = PutioSDKErrorRequestInformation(
+      config: requestConfig)
     _ = (sentinel, block, nested)
     return try JSONDecoder().decode(type, from: data)
   }

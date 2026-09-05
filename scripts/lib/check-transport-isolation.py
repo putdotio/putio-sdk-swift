@@ -6,12 +6,14 @@ Rules (see docs/ARCHITECTURE.md, "Internal transport isolation"):
   * `request` must not be `@concurrent`; it snapshots `config`/`delegate` on the
     caller's actor.
   * `perform` and `execute` must both be `@concurrent`.
-  * No `@concurrent` body may use `self.` member access or a bare `config` or
-    `delegate` identifier. Argument labels (`config:`) are allowed.
+  * No `@concurrent` body may use `self.` member access or read `config` or
+    `delegate`. Only argument-label positions (`f(config: x)`, `f(config y: x)`)
+    are exempt; ternary operands and other expressions are not.
 
 Comments and string literal text (including multi-line and raw strings) are
 blanked before parsing so they cannot hide or fake a match. Interpolation
-expressions inside strings are executable Swift and are kept for auditing.
+expressions are executable Swift and are lexed with the same rules, including
+comments and nested strings inside them.
 """
 
 import re
@@ -20,17 +22,64 @@ from pathlib import Path
 
 REQUIRED_CONCURRENT = {"perform", "execute"}
 FORBIDDEN_CONCURRENT = {"request"}
-FORBIDDEN_READ = re.compile(r"(?<![.\w])self\s*\.|(?<![.\w])(?:config|delegate)\b(?!\s*:)")
+SELF_MEMBER = re.compile(r"(?<![.\w])self\s*\.")
+STATE_IDENT = re.compile(r"(?<![.\w])(config|delegate)\b")
+LABEL_AFTER = re.compile(r"\s*(?:[A-Za-z_]\w*\s*)?:(?!:)")
 FUNC_DECL = re.compile(r"\bfunc\s+([A-Za-z_]\w*)")
 
 
-def blank(text):
-    return "".join("\n" if ch == "\n" else " " for ch in text)
+def blank(ch):
+    return "\n" if ch == "\n" else " "
+
+
+def lex(source, i, out, until_close_paren=False):
+    """Copy code from `source[i:]` into `out` with comments and string text blanked.
+
+    With `until_close_paren`, stop after the `)` that closes paren depth 0 and
+    return the index past it; otherwise consume to the end.
+    """
+    n, depth = len(source), 0
+    while i < n:
+        if source.startswith("//", i):
+            while i < n and source[i] != "\n":
+                out.append(" ")
+                i += 1
+            continue
+        if source.startswith("/*", i):
+            nested, j = 1, i + 2
+            while j < n and nested:
+                if source.startswith("/*", j):
+                    nested, j = nested + 1, j + 2
+                elif source.startswith("*/", j):
+                    nested, j = nested - 1, j + 2
+                else:
+                    j += 1
+            out.extend(blank(ch) for ch in source[i:j])
+            i = j
+            continue
+        if source[i] in '#"':
+            k, hashes = i, 0
+            while k < n and source[k] == "#":
+                k, hashes = k + 1, hashes + 1
+            if k < n and source[k] == '"':
+                i = scan_string(source, k, hashes, out)
+                continue
+        ch = source[i]
+        out.append(ch)
+        i += 1
+        if until_close_paren:
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                if depth == 0:
+                    return i
+                depth -= 1
+    return n
 
 
 def scan_string(source, start, hashes, out):
-    """Blank the literal text of the string opening at `start` (a quote) into `out`,
-    keeping interpolation expressions verbatim, and return the index past it."""
+    """Blank the literal text of the string opening at `start` (a quote), lexing
+    interpolation expressions as code, and return the index past the string."""
     n = len(source)
     multiline = source.startswith('"""', start)
     closing = ('"""' if multiline else '"') + "#" * hashes
@@ -41,64 +90,43 @@ def scan_string(source, start, hashes, out):
         if source.startswith(escape, j):
             after = j + len(escape)
             if source.startswith("(", after):
-                depth, k = 1, after + 1
                 out.append(" (")
-                while k < n and depth:
-                    ch = source[k]
-                    if ch == '"':
-                        k = scan_string(source, k, 0, out)
-                        continue
-                    depth += (ch == "(") - (ch == ")")
-                    out.append(ch)
-                    k += 1
-                j = k
+                j = lex(source, after + 1, out, until_close_paren=True)
             else:
-                out.append("\n" if source[after : after + 1] == "\n" else " ")
+                out.append(blank(source[after]) if after < n else " ")
                 j = after + 1
             continue
         if source.startswith(closing, j):
             out.append('"')
             return j + len(closing)
-        out.append("\n" if source[j] == "\n" else " ")
+        out.append(blank(source[j]))
         j += 1
     return n
 
 
 def strip_comments_and_strings(source):
-    out, i, n = [], 0, len(source)
-    while i < n:
-        if source.startswith("//", i):
-            j = source.find("\n", i)
-            j = n if j == -1 else j
-            out.append(blank(source[i:j]))
-            i = j
-            continue
-        if source.startswith("/*", i):
-            depth, j = 1, i + 2
-            while j < n and depth:
-                if source.startswith("/*", j):
-                    depth, j = depth + 1, j + 2
-                elif source.startswith("*/", j):
-                    depth, j = depth - 1, j + 2
-                else:
-                    j += 1
-            out.append(blank(source[i:j]))
-            i = j
-            continue
-        if source[i] in '#"':
-            k, hashes = i, 0
-            while k < n and source[k] == "#":
-                k, hashes = k + 1, hashes + 1
-            if k < n and source[k] == '"':
-                i = scan_string(source, k, hashes, out)
-                continue
-        out.append(source[i])
-        i += 1
+    out = []
+    lex(source, 0, out)
     return "".join(out)
 
 
 def line_of(text, offset):
     return text.count("\n", 0, offset) + 1
+
+
+def is_argument_label(text, match):
+    before = text[: match.start()].rstrip()
+    if not before or before[-1] not in "(,":
+        return False
+    return LABEL_AFTER.match(text, match.end()) is not None
+
+
+def forbidden_reads(body):
+    for match in SELF_MEMBER.finditer(body):
+        yield match.start(), "self"
+    for match in STATE_IDENT.finditer(body):
+        if not is_argument_label(body, match):
+            yield match.start(), match.group(1)
 
 
 def audit(path):
@@ -134,10 +162,10 @@ def audit(path):
             failures.append(f"line {line_of(text, decl.start())}: unbalanced body for `{name}`")
             continue
         body = text[k:end]
-        for match in FORBIDDEN_READ.finditer(body):
-            line = line_of(text, k + match.start())
+        for offset, what in sorted(forbidden_reads(body)):
+            line = line_of(text, k + offset)
             failures.append(
-                f"line {line}: `{match.group(0).rstrip(' .')}` read inside @concurrent `{name}`: {lines[line - 1].strip()}"
+                f"line {line}: `{what}` read inside @concurrent `{name}`: {lines[line - 1].strip()}"
             )
 
     for name in sorted(FORBIDDEN_CONCURRENT & concurrent.keys()):
