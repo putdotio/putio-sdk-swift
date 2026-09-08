@@ -22,7 +22,7 @@
 
 ## Installation
 
-Requires Xcode 26 or newer; deployment targets are iOS, macOS, Mac Catalyst, tvOS, and watchOS 26.
+Requires Xcode 26 or newer. The Swift Package targets iOS, macOS, Mac Catalyst, tvOS, and watchOS 26; the CocoaPods pod targets iOS, tvOS, and watchOS 26.
 
 Install with Swift Package Manager in Xcode using:
 
@@ -67,7 +67,7 @@ Task {
 }
 ```
 
-Every API call is `async throws` over native `URLSession`; there is no third-party networking dependency.
+Every network call is `async throws` over native `URLSession`; there is no third-party networking dependency. URL builders and callback parsing are synchronous.
 
 Apps that need a custom transport for tests, fixtures, or specialized session configuration can pass their own `URLSession`:
 

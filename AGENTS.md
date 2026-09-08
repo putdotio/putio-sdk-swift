@@ -33,7 +33,7 @@ worktrees. Run `make bootstrap`; use `make secrets-setup` with
 
 - Keep the public package surface open-source-safe: no first-party client identifiers, callback URLs, or token-scope details in code, docs, or the example app
 - Prefer the `make verify` entrypoint instead of ad hoc validation commands
-- The GitHub repository is `putio-sdk-swift`; the Swift Package product, CocoaPods pod, module, and public type prefix are all `PutioSDK`
+- The GitHub repository is `putio-sdk-swift`; the Swift Package product, CocoaPods pod, and module are all `PutioSDK`, and public types use the `Putio` prefix
 - CI and release automation run from `main`; the release contract lives in [Contributing — Releases](./CONTRIBUTING.md#releases)
 - Verify example workspace installation when auth-flow or package-install surface changes
 - `make verify` starts with `swift format lint --strict` using the Xcode toolchain's stock rules; run `swift format --in-place --recursive --parallel` on the same paths to fix violations
