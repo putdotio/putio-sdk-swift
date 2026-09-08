@@ -17,7 +17,7 @@ extension PutioSDK {
       throw PutioVideoPlaybackResolutionError.unsupportedFileType(file.type)
     }
 
-    guard !file.needConvert else {
+    if file.needConvert {
       return .conversionRequired
     }
 

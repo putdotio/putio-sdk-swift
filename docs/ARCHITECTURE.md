@@ -1,9 +1,5 @@
 # SDK Overview
 
-## Goal
-
-Explain the actual `putio-sdk-swift` package shape for humans and agents.
-
 ## System View
 
 ```mermaid
@@ -22,8 +18,8 @@ graph LR
 | Component | Responsibility |
 | --- | --- |
 | `PutioSDK` | shared SDK entrypoint and transport composition |
-| Async methods | preferred modern API surface using `async throws` |
-| Boundary models | typed request inputs plus `Encodable` request values and `Decodable` response types for the modernized domains |
+| Async methods | public API surface, all `async throws` |
+| Boundary models | typed request inputs plus `Encodable` request values and `Decodable` response types |
 | Error model | typed transport, API, and decoding failures with `LocalizedError` guidance plus retry and classification helpers |
 
 ## Design Rules
@@ -34,8 +30,7 @@ graph LR
 - keep authenticated playback URL construction inside the SDK so consumers never supply or assemble token parameters, and treat returned playback URLs as bearer-sensitive values
 - keep the CocoaPods and Swift Package surfaces aligned
 - preserve forward compatibility where possible instead of crashing on unknown backend strings
-- keep live-tested domains on the modern async path first, then expand outward
-- keep the public API single-surface and async-first instead of splitting effort across compatibility wrappers
+- keep the public API single-surface and async-first; no completion-handler wrappers
 
 ## Swift Concurrency Posture
 
@@ -108,7 +103,7 @@ declares `swift-tools-version:6.2` and `PutioSDKStrictConcurrencyTests` opts int
 Swift language mode 6 while the `PutioSDK` library target itself stays on
 language mode 5.
 
-## Current Modernized Slice
+## API Surface
 
 - `account`
   - `getAccountInfo`
@@ -119,13 +114,17 @@ language mode 5.
 - `auth`
   - `getAuthCode`
   - `checkAuthCodeMatch`
-  - `awaitDeviceCodeAuthorization` polling until the code is approved, expired as a typed state, or cancelled
+  - `awaitDeviceCodeAuthorization`, which polls until the code is approved, returns `.expired` as a typed state, and honors task cancellation
   - `logout`
   - `validateToken`
   - `generateTOTP`
   - `verifyTOTP`
   - `getRecoveryCodes`
   - `regenerateRecoveryCodes`
+- `config`
+  - `getConfig`
+  - `saveConfig`
+  - `setChromecastPlaybackType`
 - `grants`
   - `getGrants`
   - `revokeGrant`
@@ -146,15 +145,17 @@ language mode 5.
   - `moveFiles`
   - `renameFile`
   - `findNextFile`
-  - `findNextFileIfAvailable` for a normal `next_file: null` response
-  - `setFileSort`
-  - `resetFileSort`
+  - `findNextFileIfAvailable`, which returns `nil` for a `next_file: null` response
+  - `setSortBy`
+  - `resetFileSpecificSortSettings`
   - `getStartFrom`
   - `setStartFrom`
   - `resetStartFrom`
   - `getMp4ConversionStatus`
   - `startMp4Conversion`
   - `resolveVideoPlaybackSource` for authenticated direct HLS or an explicit conversion-required state
+- `ifttt`
+  - `sendIFTTTEvent`
 - `routes`
   - `getRoutes`
 - `subtitles`
@@ -177,26 +178,12 @@ language mode 5.
   - `deleteTrashFiles`
   - `emptyTrash`
 
-## Native Baseline Coverage
-
-| Baseline family | Swift coverage |
-| --- | --- |
-| Auth and OAuth | `covered` |
-| Account basics and settings | `covered` |
-| Security and 2FA | `covered` |
-| Files browse and detail with cursor continuation | `covered` |
-| Search with cursor continuation | `covered` |
-| Transfers | `covered` |
-| History and events | `covered` |
-| Trash with cursor continuation | `covered` |
-| Subtitles | `covered` |
-| Playback-adjacent helpers | `covered` |
+## Typed Query Inputs
 
 Typed query inputs exist for account info, account settings updates, file listing and continuation, file detail projections, file search and continuation, transfer listing, and trash listing. Cursor or continuation flows stay explicit where the backend exposes them.
 
-## What This Package Is Not
+## Boundaries
 
 - not a generic JSON bag around the put.io API
-- not dependent on Alamofire for request construction or transport
-- not full namespace parity with the TypeScript SDK yet
-- not a dual-surface SDK with callback compatibility as a first-class goal
+- no third-party networking dependency
+- not full namespace parity with the TypeScript SDK

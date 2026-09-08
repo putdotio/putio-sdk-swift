@@ -153,6 +153,8 @@ private struct PutioOptionalNextFileEnvelope: Decodable {
     case nextFile = "next_file"
   }
 
+  // `decode`, not `decodeIfPresent`: only an explicit `"next_file": null` means no
+  // successor; a missing key is a malformed response.
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     nextFile = try container.decode(PutioNextFilePayload?.self, forKey: .nextFile)

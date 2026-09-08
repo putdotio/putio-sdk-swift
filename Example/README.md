@@ -1,9 +1,6 @@
 # Example App
 
-The example app is a lightweight smoke-test surface for the SDK's OAuth flow.
-
-It integrates the local CocoaPods package as `PutioSDK`, and the in-code SDK surface also uses `PutioSDK`.
-The example app uses the async `PutioSDK` APIs directly so it stays aligned with the recommended public surface.
+The example app is a lightweight smoke-test surface for the SDK's OAuth flow. It integrates the local CocoaPods package as `PutioSDK` and registers its own `putioswift://auth` callback URL.
 
 ## Setup
 
@@ -18,7 +15,7 @@ open Example/PutioSDK.xcworkspace
 ## Usage
 
 - run the `PutioSDK_Example` target
-- enter your OAuth client ID
+- enter your own put.io OAuth client ID
 - complete the `ASWebAuthenticationSession` sign-in flow
 - confirm the app can fetch account info and list files after the state-validated callback
 

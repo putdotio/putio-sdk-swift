@@ -529,11 +529,17 @@ final class PutioSDKFilesTests: XCTestCase {
     }
   }
 
-  func testResolveVideoPlaybackSourceRejectsMissingRequiredVideoState() async throws {
+  func testResolveVideoPlaybackSourceRejectsMissingOrInvalidVideoState() async throws {
     let cases = [
-      (fileID: 46, providedState: #""start_from": 0"#),
-      (fileID: 47, providedState: #""need_convert": false"#),
+      (fileID: 46, videoState: #""start_from": 0"#),
+      (fileID: 47, videoState: #""need_convert": false"#),
+      (fileID: 48, videoState: #""need_convert": false, "start_from": -1"#),
+      (fileID: 49, videoState: #""need_convert": false, "start_from": 1e100"#),
     ]
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
 
     for testCase in cases {
       try installMockRequestHandler { request in
@@ -543,61 +549,18 @@ final class PutioSDKFilesTests: XCTestCase {
             "file": {
               "id": \(testCase.fileID),
               "file_type": "VIDEO",
-              \(testCase.providedState)
+              \(testCase.videoState)
             }
           }
           """
         return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
       }
 
-      let sdk = PutioSDK(
-        config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
-        urlSession: makeTestSession()
-      )
-
       do {
         _ = try await sdk.resolveVideoPlaybackSource(fileID: testCase.fileID)
-        XCTFail("Expected missing video state to fail decoding")
+        XCTFail("Expected \(testCase.videoState) to fail decoding")
       } catch let error as PutioSDKError {
-        XCTAssertTrue(error.isDecodingFailure)
-      } catch {
-        XCTFail("Expected PutioSDKError, got \(type(of: error))")
-      }
-    }
-  }
-
-  func testResolveVideoPlaybackSourceRejectsInvalidStartFromValues() async throws {
-    let cases = [
-      (fileID: 48, startFrom: "-1"),
-      (fileID: 49, startFrom: "1e100"),
-    ]
-
-    for testCase in cases {
-      try installMockRequestHandler { request in
-        XCTAssertEqual(request.url?.path, "/v2/files/\(testCase.fileID)")
-        let payload = """
-          {
-            "file": {
-              "id": \(testCase.fileID),
-              "file_type": "VIDEO",
-              "need_convert": false,
-              "start_from": \(testCase.startFrom)
-            }
-          }
-          """
-        return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
-      }
-
-      let sdk = PutioSDK(
-        config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
-        urlSession: makeTestSession()
-      )
-
-      do {
-        _ = try await sdk.resolveVideoPlaybackSource(fileID: testCase.fileID)
-        XCTFail("Expected invalid start-from state to fail decoding")
-      } catch let error as PutioSDKError {
-        XCTAssertTrue(error.isDecodingFailure)
+        XCTAssertTrue(error.isDecodingFailure, "\(testCase.videoState)")
       } catch {
         XCTFail("Expected PutioSDKError, got \(type(of: error))")
       }

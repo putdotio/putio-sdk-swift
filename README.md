@@ -22,29 +22,23 @@
 
 ## Installation
 
+Requires Xcode 26 or newer; deployment targets are iOS, macOS, Mac Catalyst, tvOS, and watchOS 26.
+
 Install with Swift Package Manager in Xcode using:
 
 ```text
 https://github.com/putdotio/putio-sdk-swift.git
 ```
 
-Or add it to `Package.swift`:
+Or add it to `Package.swift` and depend on the `PutioSDK` product:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/putdotio/putio-sdk-swift.git", from: "1.0.0")
+    .package(url: "https://github.com/putdotio/putio-sdk-swift.git", from: "3.0.0")
 ]
 ```
 
-Then depend on the `PutioSDK` product.
-
-Import it as:
-
-```swift
-import PutioSDK
-```
-
-If you use CocoaPods today, install with:
+With CocoaPods:
 
 ```ruby
 pod 'PutioSDK'
@@ -73,7 +67,7 @@ Task {
 }
 ```
 
-The SDK exposes an async-first `async throws` surface with native `URLSession` transport and no third-party networking dependency. It no longer ships completion-handler compatibility wrappers or raw JSON response APIs.
+Every API call is `async throws` over native `URLSession`; there is no third-party networking dependency.
 
 Apps that need a custom transport for tests, fixtures, or specialized session configuration can pass their own `URLSession`:
 
@@ -125,40 +119,22 @@ localized recovery suggestion.
 The returned URL is a bearer credential because it contains the access token needed by the media
 endpoint. Use it only for playback; do not log, persist, or share it.
 
-## Development
-
-For local development, the repo exposes one verification command:
-
-```bash
-make verify
-```
-
-Use [Contributing](./CONTRIBUTING.md) for setup, deterministic verification, live API checks, and release expectations.
-
 ## Authentication Example
 
-The example app shows a minimal `ASWebAuthenticationSession` flow and a follow-up account fetch:
+The example app shows a minimal `ASWebAuthenticationSession` flow with your own client ID and redirect URI, followed by an account fetch:
 
 - [Example/PutioSDK/ViewController.swift](./Example/PutioSDK/ViewController.swift)
 - [Example app guide](./Example/README.md)
 
-Use `try PutioSDK.generateOAuthState()` with `getAuthURL(redirectURI:state:)`, then validate the returned callback state before accepting `access_token`.
+Generate a state with `try PutioSDK.generateOAuthState()`, pass it to `getAuthURL(redirectURI:state:)`, then extract the token with `accessToken(fromOAuthCallback:expectedScheme:expectedHost:expectedState:)`, which rejects callbacks whose state does not match.
 
 ## Docs
 
-- [Example app](./Example) for the example app and smoke-test workspace
-- [Architecture](./docs/ARCHITECTURE.md) for the current async transport and decoding direction
-- [Testing](./docs/TESTING.md) for deterministic and live verification
-- [Readiness](./docs/READINESS.md) for the current verification confidence
+- [Contributing](./CONTRIBUTING.md) for setup, `make verify`, live API checks, and releases
+- [Architecture](./docs/ARCHITECTURE.md) for the transport, concurrency posture, and covered API surface
+- [Testing](./docs/TESTING.md) for what each verification command runs
 - [Security](./SECURITY.md) for private vulnerability reporting
-
-## Repo Internals
-
 - [Agent guide](./AGENTS.md) for repo-specific agent guidance
-
-## Contributing
-
-Start with [Contributing](./CONTRIBUTING.md) so local setup, verification, and release expectations stay aligned with CI
 
 ## License
 
