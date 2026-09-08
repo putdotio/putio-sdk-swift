@@ -26,9 +26,7 @@ Useful reports usually include issues involving:
 
 ## Supported Versions
 
-This repo does not currently publish a separate supported-version matrix.
-
-Please report issues against the latest published pod version, or against `main` when the issue is only reproducible there.
+Report issues against the latest published release, or against `main` when the issue is only reproducible there.
 
 ## Disclosure
 
