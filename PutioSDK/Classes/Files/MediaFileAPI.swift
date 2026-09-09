@@ -111,10 +111,10 @@ extension PutioSDK {
 }
 
 private struct PutioPlaybackFileEnvelope: Decodable {
-  let file: PutioVideoPlaybackFile
+  let file: PutioPlaybackFile
 }
 
-private struct PutioVideoPlaybackFile: Decodable {
+private struct PutioPlaybackFile: Decodable {
   let id: Int
   let type: PutioFileType
   let needConvert: Bool
