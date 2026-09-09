@@ -567,6 +567,128 @@ final class PutioSDKFilesTests: XCTestCase {
     }
   }
 
+  func testResolveAudioPlaybackSourceBuildsAuthenticatedStreamURLAndMapsStartFrom() async throws {
+    try installMockRequestHandler { request in
+      XCTAssertEqual(request.url?.path, "/custom/v2/files/50")
+      XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token token / value")
+      let components = URLComponents(
+        url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)
+      let queryItems = Dictionary(
+        uniqueKeysWithValues: (components?.queryItems ?? []).map { ($0.name, $0.value) })
+      XCTAssertEqual(queryItems, ["start_from": "1"])
+
+      return (
+        makeHTTPResponse(for: request, statusCode: 200),
+        playbackFileEnvelope(fileID: 50, fileType: "AUDIO", needConvert: nil, startFrom: 12.9)
+      )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(
+        baseURL: "https://media.example.test/custom/v2/",
+        clientID: "ios-app",
+        token: "token / value"
+      ),
+      urlSession: makeTestSession()
+    )
+
+    let source = try await sdk.resolveAudioPlaybackSource(fileID: 50)
+
+    let components = URLComponents(url: source.url, resolvingAgainstBaseURL: false)
+    let queryItems = Dictionary(
+      uniqueKeysWithValues: (components?.queryItems ?? []).map { ($0.name, $0.value) })
+    XCTAssertEqual(components?.scheme, "https")
+    XCTAssertEqual(components?.host, "media.example.test")
+    XCTAssertEqual(components?.path, "/custom/v2/files/50/stream")
+    XCTAssertEqual(queryItems, ["oauth_token": "token / value"])
+    XCTAssertEqual(source.startFrom, 12)
+  }
+
+  func testResolveAudioPlaybackSourceRejectsNonAudioWithTypedRecovery() async throws {
+    try installMockRequestHandler { request in
+      XCTAssertEqual(request.url?.path, "/v2/files/42")
+      return (
+        makeHTTPResponse(for: request, statusCode: 200),
+        playbackFileEnvelope(fileID: 42, fileType: "VIDEO", needConvert: false, startFrom: 0)
+      )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    do {
+      _ = try await sdk.resolveAudioPlaybackSource(fileID: 42)
+      XCTFail("Expected a non-audio file to be rejected")
+    } catch let error as PutioAudioPlaybackResolutionError {
+      XCTAssertEqual(error, .unsupportedFileType(.video))
+      XCTAssertEqual(error.errorDescription, "Only audio files can be resolved for audio playback.")
+      XCTAssertEqual(error.recoverySuggestion, "Choose an audio file and try again.")
+    } catch {
+      XCTFail("Expected PutioAudioPlaybackResolutionError, got \(type(of: error))")
+    }
+  }
+
+  func testResolveAudioPlaybackSourceRejectsMissingOrInvalidStartFrom() async throws {
+    let cases = [
+      (fileID: 60, audioState: ""),
+      (fileID: 61, audioState: #""start_from": -1"#),
+      (fileID: 62, audioState: #""start_from": 1e100"#),
+    ]
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    for testCase in cases {
+      try installMockRequestHandler { request in
+        let payload = """
+          {
+            "file": {
+              "id": \(testCase.fileID),
+              "file_type": "AUDIO"
+              \(testCase.audioState.isEmpty ? "" : ", " + testCase.audioState)
+            }
+          }
+          """
+        return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
+      }
+
+      do {
+        _ = try await sdk.resolveAudioPlaybackSource(fileID: testCase.fileID)
+        XCTFail("Expected \(testCase.audioState) to fail decoding")
+      } catch let error as PutioSDKError {
+        XCTAssertTrue(error.isDecodingFailure, "\(testCase.audioState)")
+      } catch {
+        XCTFail("Expected PutioSDKError, got \(type(of: error))")
+      }
+    }
+  }
+
+  func testResolveAudioPlaybackSourcePreservesTypedAPIErrors() async throws {
+    try installMockRequestHandler { request in
+      (
+        makeHTTPResponse(for: request, statusCode: 404),
+        Data(#"{"error_type":"NOT_FOUND","message":"File not found"}"#.utf8)
+      )
+    }
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    do {
+      _ = try await sdk.resolveAudioPlaybackSource(fileID: 99)
+      XCTFail("Expected the API error to propagate")
+    } catch let error as PutioSDKError {
+      XCTAssertTrue(error.isNotFound)
+      XCTAssertEqual(error.apiErrorType, "NOT_FOUND")
+    } catch {
+      XCTFail("Expected PutioSDKError, got \(type(of: error))")
+    }
+  }
+
   func testResolveVideoPlaybackSourceAcceptsIntMaxStartFrom() async throws {
     try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/50")

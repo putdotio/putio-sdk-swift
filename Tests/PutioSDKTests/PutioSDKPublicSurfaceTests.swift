@@ -50,6 +50,23 @@ final class PutioSDKPublicSurfaceTests: XCTestCase {
     }
   }
 
+  func testAudioPlaybackValuesCanBeConstructedByPackageConsumers() throws {
+    let source = PutioAudioPlaybackSource(
+      url: try XCTUnwrap(URL(string: "https://example.test/stream?oauth_token=token-123")),
+      startFrom: 12
+    )
+    let error = PutioAudioPlaybackResolutionError.unsupportedFileType(.video)
+
+    XCTAssertEqual(source, PutioAudioPlaybackSource(url: source.url, startFrom: 12))
+    XCTAssertNotNil(error.errorDescription)
+    for description in [
+      String(describing: source), String(reflecting: source), dumpOutput(source),
+    ] {
+      XCTAssertFalse(description.contains("token-123"))
+      XCTAssertTrue(description.contains("redacted"))
+    }
+  }
+
   func testVideoPlaybackResolverIsAvailableToPackageConsumers() async throws {
     try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42")
