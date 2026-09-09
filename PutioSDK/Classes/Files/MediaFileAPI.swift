@@ -9,7 +9,7 @@ extension PutioSDK {
       "/files/\(fileID)",
       query: ["mp4_status": 1, "start_from": 1],
       apiConfig: operationConfig,
-      as: PutioVideoPlaybackFileEnvelope.self
+      as: PutioPlaybackFileEnvelope.self
     )
     let file = envelope.file
 
@@ -37,7 +37,7 @@ extension PutioSDK {
       "/files/\(fileID)",
       query: ["start_from": 1],
       apiConfig: operationConfig,
-      as: PutioVideoPlaybackFileEnvelope.self
+      as: PutioPlaybackFileEnvelope.self
     )
     let file = envelope.file
 
@@ -110,7 +110,7 @@ extension PutioSDK {
   }
 }
 
-private struct PutioVideoPlaybackFileEnvelope: Decodable {
+private struct PutioPlaybackFileEnvelope: Decodable {
   let file: PutioVideoPlaybackFile
 }
 
