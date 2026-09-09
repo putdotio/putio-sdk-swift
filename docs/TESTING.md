@@ -54,6 +54,7 @@ Current live targets cover:
 - transfer list/count/info decode against the real API
 - playback-adjacent subtitle decode and reversible start-from roundtrips for owned video fixtures
 - authenticated direct-HLS resolution for an already-playable owned video fixture when one is available
+- authenticated audio-stream resolution for an owned audio fixture when one is available
 
 When the live account has trash disabled, the disposable flow proves create, list, and delete and reports restore coverage as skipped instead of changing the shared account setting.
 

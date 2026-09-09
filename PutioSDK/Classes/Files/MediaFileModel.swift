@@ -31,19 +31,72 @@ public struct PutioVideoPlaybackSource: Equatable, Sendable, CustomStringConvert
   }
 
   private var redactedURLDescription: String {
-    guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-      return "<redacted playback URL>"
-    }
-
-    components.user = components.user.map { _ in "<redacted>" }
-    components.password = components.password.map { _ in "<redacted>" }
-    components.queryItems = components.queryItems?.map { item in
-      sensitiveKey(item.name)
-        ? URLQueryItem(name: "<redacted>", value: "<redacted>")
-        : item
-    }
-    return components.string ?? "<redacted playback URL>"
+    redactedPlaybackURLDescription(url)
   }
+}
+
+public struct PutioAudioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
+  CustomDebugStringConvertible, CustomReflectable
+{
+  public let url: URL
+  public let startFrom: Int
+
+  public init(url: URL, startFrom: Int) {
+    self.url = url
+    self.startFrom = startFrom
+  }
+
+  public var description: String {
+    "PutioAudioPlaybackSource(url: \(redactedPlaybackURLDescription(url)), startFrom: \(startFrom))"
+  }
+
+  public var debugDescription: String {
+    description
+  }
+
+  public var customMirror: Mirror {
+    Mirror(
+      self,
+      children: [
+        "url": redactedPlaybackURLDescription(url),
+        "startFrom": startFrom,
+      ],
+      displayStyle: .struct
+    )
+  }
+}
+
+public enum PutioAudioPlaybackResolutionError: Error, LocalizedError, Equatable, Sendable {
+  case unsupportedFileType(PutioFileType)
+
+  public var errorDescription: String? {
+    switch self {
+    case .unsupportedFileType:
+      return "Only audio files can be resolved for audio playback."
+    }
+  }
+
+  public var recoverySuggestion: String? {
+    switch self {
+    case .unsupportedFileType:
+      return "Choose an audio file and try again."
+    }
+  }
+}
+
+func redactedPlaybackURLDescription(_ url: URL) -> String {
+  guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+    return "<redacted playback URL>"
+  }
+
+  components.user = components.user.map { _ in "<redacted>" }
+  components.password = components.password.map { _ in "<redacted>" }
+  components.queryItems = components.queryItems?.map { item in
+    sensitiveKey(item.name)
+      ? URLQueryItem(name: "<redacted>", value: "<redacted>")
+      : item
+  }
+  return components.string ?? "<redacted playback URL>"
 }
 
 public enum PutioVideoPlaybackResolution: Equatable, Sendable, CustomStringConvertible,

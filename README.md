@@ -116,8 +116,18 @@ case .conversionRequired:
 Passing a non-video file throws `PutioVideoPlaybackResolutionError.unsupportedFileType` with a
 localized recovery suggestion.
 
-The returned URL is a bearer credential because it contains the access token needed by the media
-endpoint. Use it only for playback; do not log, persist, or share it.
+Audio files resolve the same way into a direct stream source, with `startFrom` carrying the saved
+position:
+
+```swift
+let source = try await sdk.resolveAudioPlaybackSource(fileID: 50)
+play(url: source.url, startingAt: source.startFrom)
+```
+
+Passing a non-audio file throws `PutioAudioPlaybackResolutionError.unsupportedFileType`.
+
+Returned playback URLs are bearer credentials because they contain the access token needed by the
+media endpoint. Use them only for playback; do not log, persist, or share them.
 
 ## Authentication Example
 

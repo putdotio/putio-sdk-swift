@@ -154,6 +154,7 @@ language mode 5.
   - `getMp4ConversionStatus`
   - `startMp4Conversion`
   - `resolveVideoPlaybackSource` for authenticated direct HLS or an explicit conversion-required state
+  - `resolveAudioPlaybackSource` for the authenticated direct audio stream
 - `ifttt`
   - `sendIFTTTEvent`
 - `routes`

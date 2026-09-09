@@ -189,6 +189,30 @@ final class PutioSDKLiveTests: XCTestCase {
     _ = try? await sdk.deleteTrashFiles(fileIDs: [fileID], cursor: nil)
   }
 
+  func testAudioPlaybackSourceResolvesAgainstRealAPI() async throws {
+    let sdk = try LiveSupport.newAuthedClient()
+    let search = try await sdk.searchFiles(
+      query: PutioFileSearchQuery(keyword: "mp3", perPage: 10)
+    )
+    let candidates = search.files.filter { $0.type == .audio && !$0.isShared }
+
+    for candidate in candidates {
+      let source = try await sdk.resolveAudioPlaybackSource(fileID: candidate.id)
+      let components = try XCTUnwrap(
+        URLComponents(url: source.url, resolvingAgainstBaseURL: false))
+      let queryItems = components.queryItems ?? []
+      let expectedStartFrom = try await sdk.getStartFrom(fileID: candidate.id)
+
+      XCTAssertTrue(components.path.hasSuffix("/files/\(candidate.id)/stream"))
+      XCTAssertTrue(
+        queryItems.contains { $0.name == "oauth_token" && $0.value?.isEmpty == false })
+      XCTAssertEqual(source.startFrom, expectedStartFrom)
+      return
+    }
+
+    throw XCTSkip("No owned audio candidate found for playback resolution")
+  }
+
   private func assertHLSPlaylistLoads(from url: URL) async throws {
     var request = URLRequest(url: url)
     request.setValue("bytes=0-4095", forHTTPHeaderField: "Range")
