@@ -9,10 +9,15 @@ final class PutioSDKStrictConcurrencyTests: XCTestCase {
     XCTAssertEqual(token, "actor-token")
   }
 
-  func testLowRiskValueTypesAreSendable() {
-    requireSendable(PutioSDKConfig.self)
+  @available(*, deprecated)
+  func testDeprecatedConfigTypesStaySendableUntilRemoval() {
     requireSendable(PutioConfig.self)
     requireSendable(PutioConfigUpdate.self)
+  }
+
+  func testLowRiskValueTypesAreSendable() {
+    requireSendable(PutioSDKConfig.self)
+    requireSendable(PutioConfigInputError.self)
     requireSendable(PutioChromecastPlaybackType.self)
     requireSendable(PutioFileType.self)
     requireSendable(PutioTransferType.self)
@@ -90,7 +95,11 @@ private func auditAsyncConsumerSurface(_ sdk: PutioSDK) async throws {
   _ = try await sdk.awaitDeviceCodeAuthorization(code: "code")
   _ = try await sdk.validateToken(token: "token")
   _ = try await sdk.getRecoveryCodes()
-  _ = try await sdk.getConfig()
+  _ = try await sdk.getConfig(as: [String: Bool].self)
+  _ = try await sdk.getConfigValue(key: "key", as: Bool.self)
+  _ = try await sdk.setConfigValue(key: "key", true)
+  _ = try await sdk.writeConfig(["key": true])
+  _ = try await sdk.deleteConfigValue(key: "key")
   _ = try await sdk.searchFiles(query: PutioFileSearchQuery(keyword: "query"))
   _ = try await sdk.getFiles(parentID: 0)
   _ = try await sdk.continueFiles(cursor: "cursor")

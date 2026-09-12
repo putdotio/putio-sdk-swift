@@ -5,6 +5,11 @@ public enum PutioChromecastPlaybackType: String, Codable, CaseIterable, Sendable
   case mp4
 }
 
+@available(
+  *, deprecated,
+  message:
+    "Config keys belong to the app; declare your own Codable config type and use getConfig(as:)."
+)
 public struct PutioConfig: Decodable, Sendable {
   public let chromecastPlaybackType: PutioChromecastPlaybackType
 
@@ -25,6 +30,7 @@ public struct PutioConfig: Decodable, Sendable {
   }
 }
 
+@available(*, deprecated, message: "Use setConfigValue(key:_:) with the app's own key.")
 public enum PutioConfigUpdate: Sendable {
   case chromecastPlaybackType(PutioChromecastPlaybackType)
 
