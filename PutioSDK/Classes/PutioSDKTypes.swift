@@ -63,6 +63,7 @@ enum PutioRequestValue: Equatable, Encodable, Sendable {
   case bool(Bool)
   case array([PutioRequestValue])
   case object(PutioRequestParameters)
+  case unsignedInteger(UInt64)
   case null
 
   func encode(to encoder: Encoder) throws {
@@ -74,6 +75,9 @@ enum PutioRequestValue: Equatable, Encodable, Sendable {
       var container = encoder.singleValueContainer()
       try container.encode(value)
     case .integer(let value):
+      var container = encoder.singleValueContainer()
+      try container.encode(value)
+    case .unsignedInteger(let value):
       var container = encoder.singleValueContainer()
       try container.encode(value)
     case .double(let value):
@@ -97,6 +101,8 @@ enum PutioRequestValue: Equatable, Encodable, Sendable {
     case .string(let value):
       return value
     case .integer(let value):
+      return String(value)
+    case .unsignedInteger(let value):
       return String(value)
     case .double(let value):
       return String(value)
@@ -127,10 +133,14 @@ enum PutioRequestValue: Equatable, Encodable, Sendable {
     case let string as String:
       self = .string(string)
     case let number as NSNumber:
+      // Integers keep their exact text through UInt64; anything wider or
+      // fractional travels as a Double, which is what JSON readers get anyway.
       if CFGetTypeID(number) == CFBooleanGetTypeID() {
         self = .bool(number.boolValue)
       } else if let integer = Int(exactly: number) {
         self = .integer(integer)
+      } else if let unsigned = UInt64(exactly: number) {
+        self = .unsignedInteger(unsigned)
       } else {
         self = .double(number.doubleValue)
       }
@@ -323,7 +333,7 @@ private func redact(_ value: PutioRequestValue) -> PutioRequestValue {
     return .array(values.map(redact))
   case .object(let parameters):
     return .object(redact(parameters))
-  case .string, .integer, .double, .bool, .null:
+  case .string, .integer, .unsignedInteger, .double, .bool, .null:
     return value
   }
 }

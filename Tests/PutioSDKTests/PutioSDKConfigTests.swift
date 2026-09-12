@@ -114,6 +114,7 @@ final class PutioSDKConfigTests: XCTestCase {
     _ = try await sdk.setConfigValue(
       key: "autoplay_next_video", AppConfig.SubtitleStyle(fontPercent: 1, edgeStyle: "raised"))
     _ = try await sdk.setConfigValue(key: "autoplay_next_video", Optional<String>.none)
+    _ = try await sdk.setConfigValue(key: "autoplay_next_video", UInt64.max)
     // Raw bodies, because JSONSerialization hands back one NSNumber for both
     // `true` and `1`.
     XCTAssertEqual(bodies[0], #"{"value":true}"#)
@@ -125,6 +126,7 @@ final class PutioSDKConfigTests: XCTestCase {
       bodies[5] == #"{"value":{"fontPercent":1,"edgeStyle":"raised"}}"#
         || bodies[5] == #"{"value":{"edgeStyle":"raised","fontPercent":1}}"#, bodies[5])
     XCTAssertEqual(bodies[6], #"{"value":null}"#)
+    XCTAssertEqual(bodies[7], #"{"value":18446744073709551615}"#, "a UInt64 lost precision")
   }
 
   func testDeleteConfigValueUsesDeleteOnTheKeyPath() async throws {
