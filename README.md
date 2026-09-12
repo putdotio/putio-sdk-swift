@@ -129,6 +129,23 @@ Passing a non-audio file throws `PutioAudioPlaybackResolutionError.unsupportedFi
 Returned playback URLs are bearer credentials because they contain the access token needed by the
 media endpoint. Use them only for playback; do not log, persist, or share them.
 
+## App Config
+
+`/config` stores whatever keys an app writes. Declare the shape in the app and let the SDK carry it:
+
+```swift
+struct AppConfig: Codable {
+  var autoplayNextVideo = false
+
+  enum CodingKeys: String, CodingKey {
+    case autoplayNextVideo = "autoplay_next_video"
+  }
+}
+
+let config = try await api.getConfig(as: AppConfig.self)
+_ = try await api.setConfigValue(key: "autoplay_next_video", true)
+```
+
 ## Authentication Example
 
 The example app shows a minimal `ASWebAuthenticationSession` flow with your own client ID and redirect URI, followed by an account fetch:

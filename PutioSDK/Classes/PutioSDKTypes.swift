@@ -63,9 +63,13 @@ enum PutioRequestValue: Equatable, Encodable, Sendable {
   case bool(Bool)
   case array([PutioRequestValue])
   case object(PutioRequestParameters)
+  case null
 
   func encode(to encoder: Encoder) throws {
     switch self {
+    case .null:
+      var container = encoder.singleValueContainer()
+      try container.encodeNil()
     case .string(let value):
       var container = encoder.singleValueContainer()
       try container.encode(value)
@@ -100,9 +104,53 @@ enum PutioRequestValue: Equatable, Encodable, Sendable {
       return value ? "1" : "0"
     case .array(let values):
       return values.map(\.queryValue).joined(separator: ",")
-    case .object:
+    case .object, .null:
       return ""
     }
+  }
+
+  /// Round-trips any `Encodable` through JSON so app-owned config types ride
+  /// the same typed request body as the SDK's own inputs.
+  init<Value: Encodable>(encoding value: Value) throws {
+    let data = try JSONEncoder().encode(PutioEncodableBox(value))
+    let object = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+    guard let boxed = object as? [String: Any], let inner = boxed["value"] else {
+      throw PutioConfigInputError.unencodableValue
+    }
+    self = try PutioRequestValue(json: inner)
+  }
+
+  private init(json: Any) throws {
+    switch json {
+    case is NSNull:
+      self = .null
+    case let string as String:
+      self = .string(string)
+    case let number as NSNumber:
+      if CFGetTypeID(number) == CFBooleanGetTypeID() {
+        self = .bool(number.boolValue)
+      } else if let integer = Int(exactly: number) {
+        self = .integer(integer)
+      } else {
+        self = .double(number.doubleValue)
+      }
+    case let array as [Any]:
+      self = .array(try array.map(PutioRequestValue.init(json:)))
+    case let object as [String: Any]:
+      self = .object(try object.mapValues(PutioRequestValue.init(json:)))
+    default:
+      throw PutioConfigInputError.unencodableValue
+    }
+  }
+}
+
+// A top-level scalar is not a JSON document for every encoder; boxing keeps
+// scalars, arrays, objects, and null on one path.
+private struct PutioEncodableBox<Value: Encodable>: Encodable {
+  let value: Value
+
+  init(_ value: Value) {
+    self.value = value
   }
 }
 
@@ -275,7 +323,7 @@ private func redact(_ value: PutioRequestValue) -> PutioRequestValue {
     return .array(values.map(redact))
   case .object(let parameters):
     return .object(redact(parameters))
-  case .string, .integer, .double, .bool:
+  case .string, .integer, .double, .bool, .null:
     return value
   }
 }

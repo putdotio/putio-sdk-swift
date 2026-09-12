@@ -121,10 +121,13 @@ language mode 5.
   - `verifyTOTP`
   - `getRecoveryCodes`
   - `regenerateRecoveryCodes`
-- `config`
-  - `getConfig`
-  - `saveConfig`
-  - `setChromecastPlaybackType`
+- `config`, an app-owned document: the app declares its own `Codable` shape and keys, the SDK never hardcodes them
+  - `getConfig(as:)`
+  - `writeConfig`
+  - `getConfigValue(key:as:)`
+  - `setConfigValue(key:_:)`
+  - `deleteConfigValue(key:)`
+  - `getConfig()`, `saveConfig`, and `setChromecastPlaybackType` remain as deprecated wrappers until the next major release
 - `grants`
   - `getGrants`
   - `revokeGrant`
