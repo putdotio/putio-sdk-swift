@@ -96,14 +96,13 @@ final class PutioSDKConfigTests: XCTestCase {
   }
 
   func testSetConfigValueEncodesScalarsObjectsAndNull() async throws {
-    var bodies: [Any] = []
+    var bodies: [String] = []
     try installMockRequestHandler { request in
       XCTAssertEqual(request.httpMethod, "PUT")
       XCTAssertEqual(request.url?.path, "/v2/config/autoplay_next_video")
       XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
       let body = try XCTUnwrap(requestBodyData(for: request))
-      let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
-      bodies.append(try XCTUnwrap(json["value"]))
+      bodies.append(try XCTUnwrap(String(data: body, encoding: .utf8)))
       return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"status":"OK"}"#.utf8))
     }
     let sdk = makeSDK()
@@ -115,14 +114,17 @@ final class PutioSDKConfigTests: XCTestCase {
     _ = try await sdk.setConfigValue(
       key: "autoplay_next_video", AppConfig.SubtitleStyle(fontPercent: 1, edgeStyle: "raised"))
     _ = try await sdk.setConfigValue(key: "autoplay_next_video", Optional<String>.none)
-    XCTAssertEqual(bodies[0] as? Bool, true)
-    XCTAssertEqual(bodies[1] as? Int, 3)
-    XCTAssertEqual(bodies[2] as? Double, 1.5)
-    XCTAssertEqual(bodies[3] as? String, "mp4")
-    XCTAssertEqual(bodies[4] as? [String], ["a", "b"])
-    XCTAssertEqual(
-      (bodies[5] as? [String: Any])?["edgeStyle"] as? String, "raised")
-    XCTAssertTrue(bodies[6] is NSNull)
+    // Raw bodies, because JSONSerialization hands back one NSNumber for both
+    // `true` and `1`.
+    XCTAssertEqual(bodies[0], #"{"value":true}"#)
+    XCTAssertEqual(bodies[1], #"{"value":3}"#)
+    XCTAssertEqual(bodies[2], #"{"value":1.5}"#)
+    XCTAssertEqual(bodies[3], #"{"value":"mp4"}"#)
+    XCTAssertEqual(bodies[4], #"{"value":["a","b"]}"#)
+    XCTAssertTrue(
+      bodies[5] == #"{"value":{"fontPercent":1,"edgeStyle":"raised"}}"#
+        || bodies[5] == #"{"value":{"edgeStyle":"raised","fontPercent":1}}"#, bodies[5])
+    XCTAssertEqual(bodies[6], #"{"value":null}"#)
   }
 
   func testDeleteConfigValueUsesDeleteOnTheKeyPath() async throws {
@@ -142,7 +144,7 @@ final class PutioSDKConfigTests: XCTestCase {
       return (makeHTTPResponse(for: request, statusCode: 500), Data())
     }
     let sdk = makeSDK()
-    for key in ["", " padded", "a/b", "line\nbreak", "odd key"] {
+    for key in ["", " padded", "a/b", "line\nbreak", "odd key", ".", ".."] {
       do {
         _ = try await sdk.getConfigValue(key: key, as: Bool.self)
         XCTFail("accepted key \(key.debugDescription)")

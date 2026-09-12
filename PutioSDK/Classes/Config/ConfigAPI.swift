@@ -24,7 +24,7 @@ extension PutioSDK {
   public func getConfigValue<Value: Decodable>(key: String, as type: Value.Type) async throws
     -> Value
   {
-    let path = try configKeyPath(key)
+    let path = try configKeyPath(key, method: .get)
     let envelope = try await request(path, as: PutioConfigValueEnvelope<Value>.self)
     return envelope.value
   }
@@ -33,7 +33,7 @@ extension PutioSDK {
   public func setConfigValue<Value: Encodable>(key: String, _ value: Value) async throws
     -> PutioOKResponse
   {
-    let path = try configKeyPath(key)
+    let path = try configKeyPath(key, method: .put)
     let requestConfig = configRequestConfig(path: path, method: .put)
     let encoded = try encodeConfigValue(value, requestConfig: requestConfig)
     return try await request(path, method: .put, body: ["value": encoded], as: PutioOKResponse.self)
@@ -41,7 +41,7 @@ extension PutioSDK {
 
   /// Removes one key from the config document.
   public func deleteConfigValue(key: String) async throws -> PutioOKResponse {
-    let path = try configKeyPath(key)
+    let path = try configKeyPath(key, method: .delete)
     return try await request(path, method: .delete, as: PutioOKResponse.self)
   }
 
@@ -64,12 +64,12 @@ extension PutioSDK {
 
   // Keys are path segments; anything the server would split or reject stays
   // a caller error instead of a mysterious 404.
-  private func configKeyPath(_ key: String) throws -> String {
-    guard !key.isEmpty, !key.contains("/"),
+  private func configKeyPath(_ key: String, method: PutioHTTPMethod) throws -> String {
+    guard !key.isEmpty, !key.contains("/"), key != ".", key != "..",
       key.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
       let encoded = key.addingPercentEncoding(withAllowedCharacters: .putioConfigKey)
     else {
-      let requestConfig = configRequestConfig(path: "/config/\(key)", method: .get)
+      let requestConfig = configRequestConfig(path: "/config/\(key)", method: method)
       throw PutioSDKError(
         request: PutioSDKErrorRequestInformation(config: requestConfig),
         unknownError: PutioConfigInputError.invalidKey(key))
@@ -95,7 +95,8 @@ extension PutioSDK {
 
 /// Why a config call was rejected before any request was sent.
 public enum PutioConfigInputError: Error, Equatable, Sendable {
-  /// The key was empty or contained whitespace or a path separator.
+  /// The key was empty, a dot segment, or contained whitespace or a path
+  /// separator.
   case invalidKey(String)
   /// The value encoded to something other than JSON. An `EncodingError` from
   /// the value itself, such as `Double.nan`, is passed through as it is.
