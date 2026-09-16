@@ -1,6 +1,6 @@
 # Example App
 
-The example app is a lightweight smoke-test surface for the SDK's OAuth flow. It integrates the local CocoaPods package as `PutioSDK` and registers its own custom callback URL scheme for the OAuth redirect.
+Smoke-test surface for the SDK's OAuth flow. It integrates the local CocoaPods package as `PutioSDK` and registers its own callback URL scheme for the OAuth redirect.
 
 ## Setup
 

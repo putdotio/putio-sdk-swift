@@ -166,9 +166,8 @@ Generate a state with `try PutioSDK.generateOAuthState()`, pass it to `getAuthUR
 
 - [Contributing](./CONTRIBUTING.md) for setup, `make verify`, live API checks, and releases
 - [Architecture](./docs/ARCHITECTURE.md) for the transport, concurrency posture, and covered API surface
-- [Testing](./docs/TESTING.md) for what each verification command runs
 - [Security](./SECURITY.md) for private vulnerability reporting
-- [Agent guide](./AGENTS.md) for repo-specific agent guidance
+- [Agent guide](./AGENTS.md)
 
 ## License
 

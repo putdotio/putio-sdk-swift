@@ -28,22 +28,22 @@ make live-test
 
 Device-code cancellation tests drive the SDK through the internal `deviceCodePollObserver` and `deviceCodePollClock` seams instead of URLSession side effects; a test clock observes sleep entry from inside the suspension for the deterministic mid-sleep proof, while the spy-clock and default `ContinuousClock` tests only bound the cancellation response.
 
-CI runs `make verify` on every pull request and push to `main`; `make verify-platforms` runs on pushes and dispatches only.
+[ci.yml](../.github/workflows/ci.yml) runs `make verify` on `macos-latest` with the latest stable Xcode for every pull request and push to `main`; `make verify-platforms` runs on pushes and dispatches only.
 
 ## Live Environment
 
-`.env.example` is the template. Supported runtime variables:
+Copy [.env.example](../.env.example) when using your own credentials. Supported runtime variables:
 
 - `PUTIO_TOKEN_FIRST_PARTY` (aliases: `PUTIO_ACCESS_TOKEN`, `PUTIO_TOKEN`): access token for the test account; tests skip when absent
 - `PUTIO_CLIENT_ID`: your OAuth client ID
 - `PUTIO_BASE_URL`: optional API base URL override
 
 Run `make secrets-setup` with `PUTIO_SDK_SWIFT_SOPS_FILE` pointing to the
-maintainer-supplied SOPS ciphertext. The command requires SOPS 3.10 or newer,
-rejects plaintext or malformed payloads, and writes owner-only `.env.local`.
-The live harness auto-loads `.env.local` and `.env`; already-exported
-environment variables keep highest priority. Run `make secrets-clean` before
-removing the worktree.
+maintainer-supplied SOPS ciphertext. The command ([scripts/secrets-setup.sh](../scripts/secrets-setup.sh))
+requires SOPS 3.10 or newer, rejects plaintext or malformed payloads, and writes
+an owner-only `.env.local` file. The live harness loads exported environment
+variables first, then `.env.local`, then `.env` from the repository root. Run
+`make secrets-clean` before removing the worktree.
 
 ## Live Scope
 

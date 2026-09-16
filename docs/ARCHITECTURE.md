@@ -24,7 +24,7 @@ graph LR
 
 ## Design Rules
 
-- prefer native Swift concurrency over callback-first transport code
+- prefer native Swift concurrency over callback-first transport code; native `URLSession` only, no third-party networking dependency
 - parse external data at the boundary with `Decodable`
 - encode request query and body values through SDK-owned typed primitives instead of untyped parameter bags
 - keep authenticated playback URL construction inside the SDK so consumers never supply or assemble token parameters, and treat returned playback URLs as bearer-sensitive values
@@ -98,10 +98,9 @@ conformances are API contracts and that manual unsafe conformance should not be
 used for types that are not actually thread-safe:
 [Swift 6 concurrency migration guide](https://www.swift.org/migration/documentation/swift-6-concurrency-migration-guide/commonproblems/).
 
-`make verify` requires the Swift 6.2 toolchain (Xcode 26 or newer): `Package.swift`
-declares `swift-tools-version:6.2` and `PutioSDKStrictConcurrencyTests` opts into
-Swift language mode 6 while the `PutioSDK` library target itself stays on
-language mode 5.
+[Package.swift](../Package.swift) declares `swift-tools-version:6.2`;
+`PutioSDKStrictConcurrencyTests` opts into Swift language mode 6 while the
+`PutioSDK` library target stays on language mode 5.
 
 ## API Surface
 
@@ -185,9 +184,3 @@ language mode 5.
 ## Typed Query Inputs
 
 Typed query inputs exist for account info, account settings updates, file listing and continuation, file detail projections, file search and continuation, transfer listing, and trash listing. Cursor or continuation flows stay explicit where the backend exposes them.
-
-## Boundaries
-
-- not a generic JSON bag around the put.io API
-- no third-party networking dependency
-- not full namespace parity with the TypeScript SDK
