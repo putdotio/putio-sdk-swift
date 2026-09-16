@@ -9,7 +9,7 @@ make verify-concurrency
 make live-test
 ```
 
-`make verify` is the deterministic repo gate and requires the Swift 6.2 toolchain (Xcode 26 or newer); see [Architecture — Swift Concurrency Posture](./ARCHITECTURE.md#swift-concurrency-posture) for the strict-concurrency contract. In order it runs:
+`make verify` is the deterministic repo gate and requires the Swift 6.2 toolchain (Xcode 26 or newer); see [Swift Concurrency Posture](./ARCHITECTURE.md#swift-concurrency-posture) for the strict-concurrency contract. In order it runs:
 
 - `swift format lint --strict` with stock rules over the package, tests, example app, and scripts
 - `scripts/check-podspec-package.rb` through Bundler, so CocoaPods package pruning keeps `VERSION` and `podspec_helper.rb` and a downloaded helper cannot replace the active one during later platform validation

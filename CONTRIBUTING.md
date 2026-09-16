@@ -44,7 +44,7 @@ make live-test
 make secrets-clean
 ```
 
-[Testing — Live Environment](./docs/TESTING.md#live-environment) has the
+[Live Environment](./docs/TESTING.md#live-environment) in Testing has the
 supported variables, load order, and safety rules. Keep ciphertext coordinates
 and private age identities outside this public repository.
 
