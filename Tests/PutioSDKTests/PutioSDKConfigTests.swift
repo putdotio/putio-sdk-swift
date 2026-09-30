@@ -163,6 +163,47 @@ final class PutioSDKConfigTests: XCTestCase {
     }
   }
 
+  func testWriteConfigRejectsNonObjectDocumentsBeforeAnyRequest() async throws {
+    try installMockRequestHandler { request in
+      XCTFail("unexpected request to \(request.url?.path ?? "")")
+      return (makeHTTPResponse(for: request, statusCode: 500), Data())
+    }
+    let sdk = makeSDK()
+    let writes: [(String, () async throws -> PutioOKResponse)] = [
+      ("scalar", { try await sdk.writeConfig(true) }),
+      ("array", { try await sdk.writeConfig([1, 2]) }),
+      ("null", { try await sdk.writeConfig(Optional<String>.none) }),
+    ]
+    for (label, write) in writes {
+      do {
+        _ = try await write()
+        XCTFail("accepted a \(label) config document")
+      } catch let error as PutioSDKError {
+        XCTAssertEqual(error.underlyingError as? PutioConfigInputError, .nonObjectConfig, label)
+      }
+    }
+  }
+
+  func testSetConfigValueRedactsValuesWrittenUnderSensitiveKeys() async throws {
+    try installMockRequestHandler { request in
+      (makeHTTPResponse(for: request, statusCode: 500), Data(#"{"status":"ERROR"}"#.utf8))
+    }
+    let sdk = makeSDK()
+    do {
+      _ = try await sdk.setConfigValue(key: "access_token", "config-token-value")
+      XCTFail("expected the stubbed failure")
+    } catch let error as PutioSDKError {
+      XCTAssertFalse(String(describing: error).contains("config-token-value"))
+      XCTAssertFalse(String(reflecting: error).contains("config-token-value"))
+    }
+    do {
+      _ = try await sdk.setConfigValue(key: "autoplay_next_video", "visible-value")
+      XCTFail("expected the stubbed failure")
+    } catch let error as PutioSDKError {
+      XCTAssertTrue(String(describing: error).contains("visible-value"))
+    }
+  }
+
   func testKeysWithReservedCharactersArePercentEncoded() async throws {
     try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/config/odd?key")

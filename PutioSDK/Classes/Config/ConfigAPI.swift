@@ -12,10 +12,17 @@ extension PutioSDK {
     return envelope.config
   }
 
-  /// Replaces the whole config document.
+  /// Replaces the whole config document. `config` must encode to a JSON
+  /// object; anything else fails with `PutioConfigInputError.nonObjectConfig`
+  /// before a request is sent.
   public func writeConfig<Config: Encodable>(_ config: Config) async throws -> PutioOKResponse {
     let requestConfig = configRequestConfig(path: "/config", method: .put)
     let value = try encodeConfigValue(config, requestConfig: requestConfig)
+    guard case .object = value else {
+      throw PutioSDKError(
+        request: PutioSDKErrorRequestInformation(config: requestConfig),
+        unknownError: PutioConfigInputError.nonObjectConfig)
+    }
     return try await request(
       "/config", method: .put, body: ["config": value], as: PutioOKResponse.self)
   }
@@ -36,7 +43,10 @@ extension PutioSDK {
     let path = try configKeyPath(key, method: .put)
     let requestConfig = configRequestConfig(path: path, method: .put)
     let encoded = try encodeConfigValue(value, requestConfig: requestConfig)
-    return try await request(path, method: .put, body: ["value": encoded], as: PutioOKResponse.self)
+    // The body field is always `value`, so the key decides whether it is sensitive.
+    return try await request(
+      path, method: .put, body: ["value": encoded],
+      redactedBodyKeys: sensitiveKey(key) ? ["value"] : [], as: PutioOKResponse.self)
   }
 
   /// Removes one key from the config document.
@@ -101,6 +111,9 @@ public enum PutioConfigInputError: Error, Equatable, Sendable {
   /// The value encoded to something other than JSON. An `EncodingError` from
   /// the value itself, such as `Double.nan`, is passed through as it is.
   case unencodableValue
+  /// `writeConfig` was given a value that did not encode to a JSON object,
+  /// such as a scalar, an array, or `nil`.
+  case nonObjectConfig
 }
 
 private struct PutioConfigDocumentEnvelope<Config: Decodable>: Decodable {

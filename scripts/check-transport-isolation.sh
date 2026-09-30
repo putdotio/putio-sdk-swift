@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Guards the #52 contract in PutioSDK/Classes/PutioSDK.swift: `request` stays
 # caller-isolated and snapshots `config`/`delegate` on the caller's actor, while
-# `perform` and `execute` are `@concurrent` and never read `self.` members or bare
-# `config`/`delegate`. The library target compiles in Swift 5 mode, so the compiler
+# `perform` and `execute` are `@concurrent`, and neither they nor the helpers they
+# reach by name read `self.` members or bare `config`/`delegate`. The library target compiles in Swift 5 mode, so the compiler
 # would not catch an off-actor read. Fixtures under scripts/fixtures/transport-isolation
 # keep the parser honest about comments, strings, and attribute layout.
 set -euo pipefail

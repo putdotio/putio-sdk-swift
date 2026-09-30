@@ -158,8 +158,9 @@ extension PutioSDK {
   /// Cancelling the calling task surfaces as `CancellationError` at the next
   /// cancellation point: before each poll, after it completes, during the sleep between
   /// polls, or while a poll request is in flight (URLSession reports the latter as
-  /// `URLError.cancelled`, which is normalized here). A poll that has already produced
-  /// a result when cancellation arrives is discarded in favour of `CancellationError`.
+  /// `URLError.cancelled`, which is normalized here and not reported to `delegate`).
+  /// A poll that has already produced a result when cancellation arrives is discarded
+  /// in favour of `CancellationError`.
   ///
   /// `pollInterval` is clamped to at least one second so a misconfigured or
   /// nonpositive value cannot hammer the endpoint into rate limiting.
@@ -173,7 +174,16 @@ extension PutioSDK {
 
       let authorization: PutioDeviceCodeAuthorization?
       do {
-        if let token = try await checkAuthCodeMatch(code: code, isExpectedFailure: \.isNotFound) {
+        // The transport notifies from inside this task, so `Task.isCancelled` reflects the
+        // caller's cancellation: the `URLError.cancelled` it causes stays away from the
+        // delegate, and the catch below turns it into `CancellationError`.
+        if let token = try await checkAuthCodeMatch(
+          code: code,
+          isExpectedFailure: { error in
+            error.isNotFound
+              || (Task.isCancelled && (error.underlyingError as? URLError)?.code == .cancelled)
+          })
+        {
           authorization = .authorized(token: token)
         } else {
           authorization = nil

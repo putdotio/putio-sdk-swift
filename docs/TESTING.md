@@ -14,7 +14,7 @@ make live-test
 - `swift format lint --strict` with stock rules over the package, tests, example app, and scripts
 - `scripts/check-podspec-package.rb` through Bundler, so CocoaPods package pruning keeps `VERSION` and `podspec_helper.rb` and a downloaded helper cannot replace the active one during later platform validation
 - `scripts/check-sendable-audit.sh`, so every public `Sendable` type under `PutioSDK/Classes` is listed in the strict-concurrency audit
-- `scripts/check-transport-isolation.sh`, so `PutioSDK.request` stays caller-isolated and the `@concurrent` `perform`/`execute` bodies never mention `self` or read bare `config`/`delegate`; parser fixtures live under `scripts/fixtures/transport-isolation/`
+- `scripts/check-transport-isolation.sh`, so `PutioSDK.request` stays caller-isolated and the `@concurrent` `perform`/`execute` bodies, and every helper in that file they reach by name, never mention `self` or read bare `config`/`delegate`; parser fixtures live under `scripts/fixtures/transport-isolation/`
 - `scripts/check-platform-simulator-destination.sh`, which covers the tvOS/watchOS destination parser against captured `simctl` listings in `scripts/fixtures/simctl/`
 - `swift test` for `PutioSDKTests` and `PutioSDKStrictConcurrencyTests` in one invocation with coverage enabled
 - `scripts/check-spm-coverage.sh 90`, failing when source line coverage for `PutioSDK/Classes` drops below `90%`
@@ -26,9 +26,9 @@ make live-test
 
 `make live-test` is opt-in. It runs `PutioSDKLiveTests` against a configured put.io test account and stays separate from the default verify path.
 
-Device-code cancellation tests drive the SDK through the internal `deviceCodePollObserver` and `deviceCodePollClock` seams instead of URLSession side effects; a test clock observes sleep entry from inside the suspension for the deterministic mid-sleep proof, while the spy-clock and default `ContinuousClock` tests only bound the cancellation response.
+Device-code cancellation tests drive the SDK through the internal `deviceCodePollObserver` and `deviceCodePollClock` seams instead of URLSession side effects; a test clock observes sleep entry from inside the suspension for the deterministic mid-sleep proof, while the spy-clock and default `ContinuousClock` tests only bound the cancellation response. The in-flight cancellation test holds the mock poll request open until the task is cancelled, then checks that the delegate saw nothing.
 
-[ci.yml](../.github/workflows/ci.yml) runs `make verify` on `macos-latest` with the latest stable Xcode for every pull request and push to `main`; `make verify-platforms` runs on pushes and dispatches only.
+[ci.yml](../.github/workflows/ci.yml) runs `make verify` on `macos-latest` with the latest stable Xcode for every pull request and push to `main`; `make verify-platforms` runs on pushes and dispatches only. Pushes whose head commit carries `[skip ci]`, such as the release commit from [.releaserc.json](../.releaserc.json), run neither lane.
 
 ## Live Environment
 

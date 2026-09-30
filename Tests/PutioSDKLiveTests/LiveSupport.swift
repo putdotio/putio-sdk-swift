@@ -4,7 +4,7 @@ import XCTest
 @testable import PutioSDK
 
 enum LiveSupport {
-  private static let envFileValues: [String: String] = loadEnvFiles([".env.local", ".env"])
+  private static let envFileValues: [String: String] = loadEnvFiles([".env", ".env.local"])
 
   static func newAuthedClient() throws -> PutioSDK {
     let token = try requiredValue(

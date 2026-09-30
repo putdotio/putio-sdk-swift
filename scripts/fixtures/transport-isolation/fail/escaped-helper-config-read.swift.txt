@@ -1,0 +1,20 @@
+public final class PutioSDK {
+  public var config: PutioSDKConfig
+
+  func request<T>(as type: T.Type) async throws -> sending T {
+    try await perform(as: type)
+  }
+
+  @concurrent
+  private func perform<T>(as type: T.Type) async throws -> sending T {
+    try await execute()
+  }
+
+  @concurrent
+  private func execute() async throws -> Data {
+    `helper`()
+    return Data()
+  }
+
+  private func `helper`() { _ = config.token }
+}

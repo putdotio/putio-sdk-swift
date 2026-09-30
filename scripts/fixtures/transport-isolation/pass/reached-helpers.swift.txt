@@ -1,0 +1,40 @@
+public final class PutioSDK {
+  public var config: PutioSDKConfig
+  public weak var delegate: PutioSDKDelegate?
+
+  func request<T>(as type: T.Type) async throws -> sending T {
+    let snapshot = config
+    return try await perform(config: snapshot, delegateReference: PutioSDKDelegateReference(delegate), as: type)
+  }
+
+  @concurrent
+  private func perform<T>(config requestConfig: PutioSDKConfig, delegateReference: PutioSDKDelegateReference, as type: T.Type) async throws -> sending T {
+    let data = try await execute(requestConfig: requestConfig, delegateReference: delegateReference)
+    return try JSONDecoder().decode(type, from: data)
+  }
+
+  @nonobjc @concurrent private nonisolated func execute(requestConfig: PutioSDKConfig, delegateReference: PutioSDKDelegateReference) async throws -> Data {
+    let urlRequest = try buildURLRequest(from: requestConfig)
+    _ = [requestConfig].map(headers)
+    delegateReference.notify(PutioSDKError())
+    return Data(urlRequest.httpMethod?.utf8 ?? "".utf8)
+  }
+
+  private func buildURLRequest(from requestConfig: PutioSDKConfig) throws -> URLRequest {
+    var urlRequest = URLRequest(url: URL(string: requestConfig.baseURL)!)
+    urlRequest.httpMethod = "GET"
+    return urlRequest
+  }
+
+  private func headers(for requestConfig: PutioSDKConfig) -> [String: String] {
+    ["Authorization": requestConfig.token]
+  }
+}
+
+final class PutioSDKDelegateReference {
+  private weak var delegate: PutioSDKDelegate?
+
+  func notify(_ error: PutioSDKError) {
+    delegate?.onPutioSDKError(error: error)
+  }
+}

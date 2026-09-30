@@ -524,6 +524,44 @@ final class PutioSDKAuthTests: XCTestCase {
     }
   }
 
+  // Cancellation while a poll request is in flight. URLSession fails the request with
+  // `URLError.cancelled` inside the transport, which must not reach the delegate: the
+  // caller asked for the cancellation and receives `CancellationError`.
+  func testAwaitDeviceCodeAuthorizationKeepsInFlightCancellationFromTheDelegate() async throws {
+    let started = DispatchSemaphore(value: 0)
+    let release = DispatchSemaphore(value: 0)
+    try installMockRequestHandler { request in
+      started.signal()
+      _ = release.wait(timeout: .now() + 5)
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":null}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let delegate = RecordingDelegate()
+    sdk.delegate = delegate
+
+    let task = Task {
+      try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(60))
+    }
+    defer {
+      task.cancel()
+      release.signal()
+    }
+    let inFlight = await Task.detached { started.wait(timeout: .now() + 5) == .success }.value
+    XCTAssertTrue(inFlight, "the poll request never started")
+
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("Expected cancellation to propagate")
+    } catch is CancellationError {
+    }
+    XCTAssertTrue(delegate.errors.isEmpty, "delegate saw \(delegate.errors)")
+  }
+
   // A non-expiry failure reaches the delegate from the transport's global executor,
   // not on the caller's actor.
   @MainActor

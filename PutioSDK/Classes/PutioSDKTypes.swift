@@ -225,6 +225,9 @@ public struct PutioSDKRequestConfig: Sendable {
   let headers: PutioHTTPHeaders
   let query: PutioRequestParameters
   let body: PutioRequestParameters?
+  // Body fields whose values are sensitive for reasons their name cannot show,
+  // such as a config value written under a token-like key.
+  let redactedBodyKeys: Set<String>
   let timeoutInterval: Double
 
   var url: String {
@@ -237,7 +240,8 @@ public struct PutioSDKRequestConfig: Sendable {
     method: PutioHTTPMethod,
     headers: PutioHTTPHeaders = [:],
     query: PutioRequestParameters = [:],
-    body: PutioRequestParameters = [:]
+    body: PutioRequestParameters = [:],
+    redactedBodyKeys: Set<String> = []
   ) {
     self.baseURL = apiConfig.baseURL
     self.path = url
@@ -253,6 +257,7 @@ public struct PutioSDKRequestConfig: Sendable {
     self.headers = enhancedHeaders
     self.query = query
     self.body = method.acceptsBody ? body : nil
+    self.redactedBodyKeys = redactedBodyKeys
     self.timeoutInterval = apiConfig.timeoutInterval
   }
 
@@ -281,7 +286,7 @@ public struct PutioSDKRequestConfig: Sendable {
 
 extension PutioSDKRequestConfig: CustomStringConvertible, CustomDebugStringConvertible {
   public var description: String {
-    "PutioSDKRequestConfig(url: \"\(redactedURL)\", method: \(method.rawValue), headers: \(redactedHeaders), query: \(redact(query)), body: \(redact(body ?? [:])))"
+    "PutioSDKRequestConfig(url: \"\(redactedURL)\", method: \(method.rawValue), headers: \(redactedHeaders), query: \(redact(query)), body: \(redact(body ?? [:], alsoRedacting: redactedBodyKeys)))"
   }
 
   public var debugDescription: String {
@@ -318,11 +323,16 @@ extension PutioSDKErrorRequestInformation: CustomStringConvertible, CustomDebugS
   }
 }
 
-private func redact(_ parameters: PutioRequestParameters) -> PutioRequestParameters {
+private func redact(
+  _ parameters: PutioRequestParameters, alsoRedacting valueKeys: Set<String> = []
+) -> PutioRequestParameters {
   var redacted = PutioRequestParameters()
   for (key, value) in parameters {
-    redacted[sensitiveKey(key) ? "<redacted>" : key] =
-      sensitiveKey(key) ? "<redacted>" : redact(value)
+    if sensitiveKey(key) {
+      redacted["<redacted>"] = "<redacted>"
+    } else {
+      redacted[key] = valueKeys.contains(key) ? "<redacted>" : redact(value)
+    }
   }
   return redacted
 }
