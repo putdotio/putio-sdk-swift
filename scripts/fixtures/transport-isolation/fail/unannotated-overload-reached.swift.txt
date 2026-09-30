@@ -1,0 +1,20 @@
+public final class PutioSDK {
+  public var config: PutioSDKConfig
+
+  func request<T>(as type: T.Type) async throws -> sending T {
+    try await perform(as: type)
+  }
+
+  @concurrent
+  private func perform<T>(as type: T.Type) async throws -> sending T {
+    try await execute()
+  }
+
+  @concurrent
+  private func execute() async throws -> Data { encode(1) }
+
+  @concurrent
+  private func encode(_ value: Int) -> Data { encode() }
+
+  private func encode() -> Data { Data(config.token.utf8) }
+}

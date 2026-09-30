@@ -175,10 +175,14 @@ extension PutioSDK {
       let authorization: PutioDeviceCodeAuthorization?
       do {
         // The transport notifies from inside this task, so `Task.isCancelled` reflects the
-        // caller's cancellation: an in-flight poll's `URLError.cancelled` stays away from
-        // the delegate, and the catch below turns it into `CancellationError`.
+        // caller's cancellation: the `URLError.cancelled` it causes stays away from the
+        // delegate, and the catch below turns it into `CancellationError`.
         if let token = try await checkAuthCodeMatch(
-          code: code, isExpectedFailure: { $0.isNotFound || Task.isCancelled })
+          code: code,
+          isExpectedFailure: { error in
+            error.isNotFound
+              || (Task.isCancelled && (error.underlyingError as? URLError)?.code == .cancelled)
+          })
         {
           authorization = .authorized(token: token)
         } else {

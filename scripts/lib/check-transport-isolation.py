@@ -11,7 +11,9 @@ Rules (see docs/ARCHITECTURE.md, "Internal transport isolation"):
     are exempt; ternary operands and other expressions are not.
   * The same rule covers every function in this file that a `@concurrent` body
     reaches by bare name (a call or a function reference), transitively, because
-    those helpers run on the same global executor.
+    those helpers run on the same global executor. Names are not scope- or
+    overload-resolved: any bare mention reaches every declaration of that name,
+    so a local that reuses a helper's name fails closed.
   * `@concurrent` binds to a `func` only when nothing but attributes and
     declaration modifiers separate them; a type-position `@concurrent` (for
     example in a property's closure type) is rejected rather than attached to the
@@ -272,19 +274,16 @@ def body_range(text, decl):
     return (decl.end(), k, end), None
 
 
-LOCAL_BINDING = re.compile(r"\b(?:let|var)\s+([A-Za-z_]\w*)")
-PARAMETER_NAME = re.compile(r"([A-Za-z_]\w*)\s*:(?!:)")
-
-
-def reached_functions(signature, body, declared):
-    """Names of functions declared in this file that `body` calls or references by
-    bare name. Member accesses (`other.helper()`), argument labels, and names the
-    signature or body rebinds as parameters or locals are not."""
-    shadowed = set(PARAMETER_NAME.findall(signature)) | set(LOCAL_BINDING.findall(body))
+def reached_functions(body, declared):
+    """Names of functions declared in this file that `body` mentions by bare name.
+    Member accesses (`other.helper()`) and argument labels are not reaches. Scope is
+    not resolved: a local, parameter, or closure argument that reuses a helper's name
+    counts as reaching every declaration of that name, so the audit fails closed;
+    rename the local instead."""
     names = set()
     for match in IDENT.finditer(body):
         name = match.group(1)
-        if name not in declared or name in shadowed:
+        if name not in declared:
             continue
         if is_member_access(body, match) or is_argument_label(body, match):
             continue
@@ -308,14 +307,14 @@ def audit(path):
         span, error = body_range(text, decl)
         if error:
             return None, error
-        signature_start, k, end = span
+        _, k, end = span
         body = text[k:end]
         for offset, what in sorted(forbidden_reads(body)):
             line = line_of(text, k + offset)
             failures.append(
                 f"line {line}: `{what}` read inside {label}: {lines[line - 1].strip()}"
             )
-        return (text[signature_start:k], body), None
+        return body, None
 
     pending = []
     for attr in re.finditer(r"@concurrent\b", text):
@@ -327,27 +326,27 @@ def audit(path):
         name = decl.group(1)
         concurrent[decl.start()] = name
 
-        parts, error = audit_body(decl, f"@concurrent `{name}`")
+        body, error = audit_body(decl, f"@concurrent `{name}`")
         if error:
             failures.append(f"line {line_of(text, decl.start())}: {error} for `{name}`")
             continue
-        pending.extend((callee, name) for callee in reached_functions(*parts, declared))
+        pending.extend((callee, name) for callee in reached_functions(body, declared))
 
-    audited = set(concurrent.values())
+    # Overloads are not resolved, so a reached name covers every declaration of it,
+    # including an unannotated overload of a `@concurrent` function.
+    audited = set(concurrent)
     reached = 0
     while pending:
         name, caller = pending.pop()
-        if name in audited:
-            continue
-        audited.add(name)
         for decl in declared[name]:
-            if decl.start() in concurrent:
+            if decl.start() in audited:
                 continue
-            parts, error = audit_body(decl, f"`{name}` (reached from @concurrent `{caller}`)")
+            audited.add(decl.start())
+            body, error = audit_body(decl, f"`{name}` (reached from @concurrent `{caller}`)")
             if error:
                 continue
             reached += 1
-            pending.extend((callee, caller) for callee in reached_functions(*parts, declared))
+            pending.extend((callee, caller) for callee in reached_functions(body, declared))
 
     # Every declaration (overloads included) of each named helper must carry the
     # expected annotation state, so an unannotated overload cannot slip past.

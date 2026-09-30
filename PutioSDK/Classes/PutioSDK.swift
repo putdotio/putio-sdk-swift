@@ -154,21 +154,21 @@ public final class PutioSDK {
         unknownError: URLError(.badURL))
     }
 
-    var request = URLRequest(url: url)
-    request.httpMethod = requestConfig.method.rawValue
-    request.timeoutInterval = requestConfig.timeoutInterval
+    var urlRequest = URLRequest(url: url)
+    urlRequest.httpMethod = requestConfig.method.rawValue
+    urlRequest.timeoutInterval = requestConfig.timeoutInterval
 
     for (name, value) in requestConfig.headers
     where !(name.lowercased() == "authorization" && value.isEmpty) {
-      request.setValue(value, forHTTPHeaderField: name)
+      urlRequest.setValue(value, forHTTPHeaderField: name)
     }
 
     if let body = requestConfig.body, !body.isEmpty {
-      request.httpBody = try JSONEncoder().encode(body)
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      urlRequest.httpBody = try JSONEncoder().encode(body)
+      urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
     }
 
-    return request
+    return urlRequest
   }
 }
 

@@ -14,16 +14,16 @@ public final class PutioSDK {
   }
 
   @nonobjc @concurrent private nonisolated func execute(requestConfig: PutioSDKConfig, delegateReference: PutioSDKDelegateReference) async throws -> Data {
-    let request = try buildURLRequest(from: requestConfig)
+    let urlRequest = try buildURLRequest(from: requestConfig)
     _ = [requestConfig].map(headers)
     delegateReference.notify(PutioSDKError())
-    return Data(request.httpMethod?.utf8 ?? "".utf8)
+    return Data(urlRequest.httpMethod?.utf8 ?? "".utf8)
   }
 
   private func buildURLRequest(from requestConfig: PutioSDKConfig) throws -> URLRequest {
-    var request = URLRequest(url: URL(string: requestConfig.baseURL)!)
-    request.httpMethod = "GET"
-    return request
+    var urlRequest = URLRequest(url: URL(string: requestConfig.baseURL)!)
+    urlRequest.httpMethod = "GET"
+    return urlRequest
   }
 
   private func headers(for requestConfig: PutioSDKConfig) -> [String: String] {
