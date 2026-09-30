@@ -18,7 +18,7 @@ graph LR
 | Component | Responsibility |
 | --- | --- |
 | `PutioSDK` | shared SDK entrypoint and transport composition |
-| Async methods | public API surface, all `async throws` |
+| Async methods | network endpoint methods, all `async throws`; URL builders, OAuth state, callback parsing, and token accessors are synchronous |
 | Boundary models | typed request inputs plus `Encodable` request values and `Decodable` response types |
 | Error model | typed transport, API, and decoding failures with `LocalizedError` guidance plus retry and classification helpers |
 
@@ -80,9 +80,10 @@ would run `JSONDecoder`/`JSONEncoder` work and
 `PutioSDKDelegate.onPutioSDKError` callbacks on a `@MainActor` consumer's main
 thread. `@concurrent` keeps that CPU work on the global executor, while the
 public domain methods that call into `request` keep SE-0461's caller-isolated
-semantics. The `@concurrent` bodies never read `self.config`: the library
-target compiles in Swift 5 mode, so an off-actor read there would race
-`setToken`/`clearToken` without a compiler diagnostic, which is why
+semantics. The `@concurrent` bodies, and the helpers they call by name, never
+read `self.config`: the library target compiles in Swift 5 mode, so an
+off-actor read there would race `setToken`/`clearToken` without a compiler
+diagnostic, which is why
 `scripts/check-transport-isolation.sh` enforces that shape in `make verify`. The delegate crosses the
 hop as a weak reference, so an in-flight request never extends its lifetime;
 swapping the delegate mid-request still delivers that request's failure to the

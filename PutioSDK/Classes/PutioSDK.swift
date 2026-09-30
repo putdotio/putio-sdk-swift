@@ -50,6 +50,7 @@ public final class PutioSDK {
     headers: PutioHTTPHeaders = [:],
     query: PutioRequestParameters = [:],
     body: PutioRequestParameters = [:],
+    redactedBodyKeys: Set<String> = [],
     apiConfig: PutioSDKConfig? = nil,
     isExpectedFailure: @escaping @Sendable (PutioSDKError) -> Bool = { _ in false },
     as type: T.Type
@@ -60,7 +61,8 @@ public final class PutioSDK {
       method: method,
       headers: headers,
       query: query,
-      body: body
+      body: body,
+      redactedBodyKeys: redactedBodyKeys
     )
     return try await perform(
       requestConfig: requestConfig,
@@ -75,7 +77,8 @@ public final class PutioSDK {
   // public domain methods that call into `request` stay caller-isolated. Only the value
   // snapshot taken in `request` crosses the hop; `self.config` is never read here.
   // scripts/check-transport-isolation.sh rejects any `self` use and bare
-  // `config`/`delegate` reads inside every `@concurrent` body in this file.
+  // `config`/`delegate` reads inside every `@concurrent` body in this file and in
+  // every helper those bodies reach by name.
   @concurrent
   private func perform<T: Decodable>(
     requestConfig: PutioSDKRequestConfig,

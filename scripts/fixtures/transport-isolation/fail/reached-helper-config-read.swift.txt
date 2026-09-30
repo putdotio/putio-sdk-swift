@@ -1,0 +1,24 @@
+public final class PutioSDK {
+  public var config: PutioSDKConfig
+
+  func request<T>(as type: T.Type) async throws -> sending T {
+    let snapshot = config
+    return try await perform(config: snapshot, as: type)
+  }
+
+  @concurrent
+  private func perform<T>(config requestConfig: PutioSDKConfig, as type: T.Type) async throws -> sending T {
+    try await execute(requestConfig: requestConfig)
+  }
+
+  @concurrent
+  private func execute(requestConfig: PutioSDKConfig) async throws -> Data {
+    let request = try buildURLRequest(from: requestConfig)
+    return Data()
+  }
+
+  private func buildURLRequest(from requestConfig: PutioSDKConfig) throws -> URLRequest {
+    _ = config.token
+    return URLRequest(url: URL(string: requestConfig.baseURL)!)
+  }
+}

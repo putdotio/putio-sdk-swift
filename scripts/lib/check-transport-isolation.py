@@ -9,6 +9,13 @@ Rules (see docs/ARCHITECTURE.md, "Internal transport isolation"):
   * No `@concurrent` body may mention `self` (member access, chaining, or a
     parenthesised receiver) or read `config` or `delegate`. Only argument-label positions (`f(config: x)`, `f(config y: x)`)
     are exempt; ternary operands and other expressions are not.
+  * The same rule covers every function in this file that a `@concurrent` body
+    reaches by bare name (a call or a function reference), transitively, because
+    those helpers run on the same global executor.
+  * `@concurrent` binds to a `func` only when nothing but attributes and
+    declaration modifiers separate them; a type-position `@concurrent` (for
+    example in a property's closure type) is rejected rather than attached to the
+    next function.
 
 Comments, string literal text (including multi-line and raw strings), and
 extended regex literals (`#/.../#`, honouring backslash escapes) are blanked
@@ -34,6 +41,13 @@ SELF_TOKEN = re.compile(r"(?<!\w)self\b")
 STATE_IDENT = re.compile(r"(?<!\w)(config|delegate)\b")
 LABEL_AFTER = re.compile(r"\s*(?:[A-Za-z_]\w*\s*)?:(?!:)")
 FUNC_DECL = re.compile(r"\bfunc\s+([A-Za-z_]\w*)")
+IDENT = re.compile(r"(?<![\w`])([A-Za-z_]\w*)\b")
+# What may sit between a declaration attribute and its `func` keyword.
+DECL_PREFIX = re.compile(
+    r"(?:\s+|@[A-Za-z_]\w*(?:\([^()]*\))?|\b(?:private|fileprivate|internal|public|open"
+    r"|package|static|class|final|override|required|convenience|mutating|nonmutating"
+    r"|nonisolated|dynamic|isolated|distributed|indirect|lazy|optional)\b(?:\([^()]*\))?)*"
+)
 
 
 def blank(ch):
@@ -238,42 +252,102 @@ def forbidden_reads(body):
         yield match.start(), match.group(1)
 
 
+def body_range(text, decl):
+    """(start, end) of the braces holding the body of the func declared at `decl`,
+    or an error message."""
+    depth, k = 0, decl.end()
+    while k < len(text) and not (text[k] == "{" and depth == 0):
+        if text[k] in "};" and depth == 0:
+            return None, "has no body"
+        depth += (text[k] == "(") - (text[k] == ")")
+        k += 1
+    if k >= len(text):
+        return None, "could not find body"
+    braces, end = 1, k + 1
+    while end < len(text) and braces:
+        braces += (text[end] == "{") - (text[end] == "}")
+        end += 1
+    if braces:
+        return None, "unbalanced body"
+    return (decl.end(), k, end), None
+
+
+LOCAL_BINDING = re.compile(r"\b(?:let|var)\s+([A-Za-z_]\w*)")
+PARAMETER_NAME = re.compile(r"([A-Za-z_]\w*)\s*:(?!:)")
+
+
+def reached_functions(signature, body, declared):
+    """Names of functions declared in this file that `body` calls or references by
+    bare name. Member accesses (`other.helper()`), argument labels, and names the
+    signature or body rebinds as parameters or locals are not."""
+    shadowed = set(PARAMETER_NAME.findall(signature)) | set(LOCAL_BINDING.findall(body))
+    names = set()
+    for match in IDENT.finditer(body):
+        name = match.group(1)
+        if name not in declared or name in shadowed:
+            continue
+        if is_member_access(body, match) or is_argument_label(body, match):
+            continue
+        if re.search(r"\bfunc\s*$", body[: match.start()]):
+            continue
+        names.add(name)
+    return names
+
+
 def audit(path):
     original = path.read_text()
     text = strip_comments_and_strings(original)
     lines = original.splitlines()
     failures = []
     concurrent = {}
+    declared = {}
+    for decl in FUNC_DECL.finditer(text):
+        declared.setdefault(decl.group(1), []).append(decl)
 
+    def audit_body(decl, label):
+        span, error = body_range(text, decl)
+        if error:
+            return None, error
+        signature_start, k, end = span
+        body = text[k:end]
+        for offset, what in sorted(forbidden_reads(body)):
+            line = line_of(text, k + offset)
+            failures.append(
+                f"line {line}: `{what}` read inside {label}: {lines[line - 1].strip()}"
+            )
+        return (text[signature_start:k], body), None
+
+    pending = []
     for attr in re.finditer(r"@concurrent\b", text):
         decl = FUNC_DECL.search(text, attr.end())
         between = text[attr.end() : decl.start()] if decl else ""
-        if not decl or re.search(r"[{};]", between):
+        if not decl or not DECL_PREFIX.fullmatch(between):
             failures.append(f"line {line_of(text, attr.start())}: @concurrent is not attached to a func")
             continue
         name = decl.group(1)
         concurrent[decl.start()] = name
 
-        depth, k = 0, decl.end()
-        while k < len(text) and not (text[k] == "{" and depth == 0):
-            depth += (text[k] == "(") - (text[k] == ")")
-            k += 1
-        if k >= len(text):
-            failures.append(f"line {line_of(text, decl.start())}: could not find body of `{name}`")
+        parts, error = audit_body(decl, f"@concurrent `{name}`")
+        if error:
+            failures.append(f"line {line_of(text, decl.start())}: {error} for `{name}`")
             continue
-        braces, end = 1, k + 1
-        while end < len(text) and braces:
-            braces += (text[end] == "{") - (text[end] == "}")
-            end += 1
-        if braces:
-            failures.append(f"line {line_of(text, decl.start())}: unbalanced body for `{name}`")
+        pending.extend((callee, name) for callee in reached_functions(*parts, declared))
+
+    audited = set(concurrent.values())
+    reached = 0
+    while pending:
+        name, caller = pending.pop()
+        if name in audited:
             continue
-        body = text[k:end]
-        for offset, what in sorted(forbidden_reads(body)):
-            line = line_of(text, k + offset)
-            failures.append(
-                f"line {line}: `{what}` read inside @concurrent `{name}`: {lines[line - 1].strip()}"
-            )
+        audited.add(name)
+        for decl in declared[name]:
+            if decl.start() in concurrent:
+                continue
+            parts, error = audit_body(decl, f"`{name}` (reached from @concurrent `{caller}`)")
+            if error:
+                continue
+            reached += 1
+            pending.extend((callee, caller) for callee in reached_functions(*parts, declared))
 
     # Every declaration (overloads included) of each named helper must carry the
     # expected annotation state, so an unannotated overload cannot slip past.
@@ -292,7 +366,10 @@ def audit(path):
                     f"line {line_of(text, decl.start())}: `{name}` must stay caller-isolated, not @concurrent"
                 )
 
-    print(f"Transport isolation audit: {len(concurrent)} @concurrent body(ies) checked in {path}.")
+    print(
+        f"Transport isolation audit: {len(concurrent)} @concurrent body(ies) and {reached} "
+        f"reached helper body(ies) checked in {path}."
+    )
     for failure in failures:
         print(f"  - {failure}")
     return not failures
