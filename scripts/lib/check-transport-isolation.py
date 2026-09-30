@@ -42,11 +42,12 @@ FORBIDDEN_CONCURRENT = {"request"}
 SELF_TOKEN = re.compile(r"(?<!\w)self\b")
 STATE_IDENT = re.compile(r"(?<!\w)(config|delegate)\b")
 LABEL_AFTER = re.compile(r"\s*(?:[A-Za-z_]\w*\s*)?:(?!:)")
-FUNC_DECL = re.compile(r"\bfunc\s+([A-Za-z_]\w*)")
-IDENT = re.compile(r"(?<![\w`])([A-Za-z_]\w*)\b")
+# Swift identifiers may start with any Unicode letter; `[^\W\d]` is a letter or `_`.
+FUNC_DECL = re.compile(r"\bfunc\s+([^\W\d]\w*)")
+IDENT = re.compile(r"(?<![\w`])([^\W\d]\w*)\b")
 # What may sit between a declaration attribute and its `func` keyword.
 DECL_PREFIX = re.compile(
-    r"(?:\s+|@[A-Za-z_]\w*(?:\([^()]*\))?|\b(?:private|fileprivate|internal|public|open"
+    r"(?:\s+|@[A-Za-z_]\w*(?:\((?:[^()]|\([^()]*\))*\))?|\b(?:private|fileprivate|internal|public|open"
     r"|package|static|class|final|override|required|convenience|mutating|nonmutating"
     r"|nonisolated|dynamic|isolated|distributed|indirect|lazy|optional)\b(?:\([^()]*\))?)*"
 )
@@ -343,7 +344,14 @@ def audit(path):
                 continue
             audited.add(decl.start())
             body, error = audit_body(decl, f"`{name}` (reached from @concurrent `{caller}`)")
+            if error == "has no body":
+                # A requirement without an implementation has nothing to read.
+                continue
             if error:
+                failures.append(
+                    f"line {line_of(text, decl.start())}: {error} for `{name}` "
+                    f"(reached from @concurrent `{caller}`)"
+                )
                 continue
             reached += 1
             pending.extend((callee, caller) for callee in reached_functions(body, declared))
