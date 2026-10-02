@@ -1,15 +1,13 @@
 # Example App
 
-Smoke-test surface for the SDK's OAuth flow. It integrates the local CocoaPods package as `PutioSDK` and registers its own callback URL scheme for the OAuth redirect.
+Smoke-test surface for the SDK's OAuth flow. It links the Swift package from this checkout as `PutioSDK` and registers its own callback URL scheme for the OAuth redirect.
 
 ## Setup
 
 From the repository root:
 
 ```bash
-make bootstrap
-make example-install
-open Example/PutioSDK.xcworkspace
+open Example/PutioSDK.xcodeproj
 ```
 
 ## Usage

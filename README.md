@@ -10,19 +10,19 @@
   </p>
 
   <p>
-    Swift Package: <code>PutioSDK</code> · CocoaPods package: <code>PutioSDK</code>
+    Swift Package: <code>PutioSDK</code>
   </p>
 
   <p>
     <a href="https://github.com/putdotio/putio-sdk-swift/actions/workflows/ci.yml?query=branch%3Amain" style="text-decoration:none;"><img src="https://img.shields.io/github/actions/workflow/status/putdotio/putio-sdk-swift/ci.yml?branch=main&style=flat&label=ci&colorA=000000&colorB=000000" alt="CI"></a>
-    <a href="https://cocoapods.org/pods/PutioSDK" style="text-decoration:none;"><img src="https://img.shields.io/cocoapods/v/PutioSDK?style=flat&colorA=000000&colorB=000000" alt="CocoaPods version"></a>
+    <a href="https://github.com/putdotio/putio-sdk-swift/releases/latest" style="text-decoration:none;"><img src="https://img.shields.io/github/v/release/putdotio/putio-sdk-swift?style=flat&label=release&colorA=000000&colorB=000000" alt="Latest release"></a>
     <a href="https://github.com/putdotio/putio-sdk-swift/blob/main/LICENSE" style="text-decoration:none;"><img src="https://img.shields.io/github/license/putdotio/putio-sdk-swift?style=flat&colorA=000000&colorB=000000" alt="license"></a>
   </p>
 </div>
 
 ## Installation
 
-Requires Xcode 26 or newer. The Swift Package targets iOS, macOS, Mac Catalyst, tvOS, and watchOS 26; the CocoaPods pod targets iOS, tvOS, and watchOS 26.
+Requires Xcode 26 or newer. The Swift Package targets iOS, macOS, Mac Catalyst, tvOS, and watchOS 26.
 
 Install with Swift Package Manager in Xcode using:
 
@@ -34,15 +34,11 @@ Or add it to `Package.swift` and depend on the `PutioSDK` product:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/putdotio/putio-sdk-swift.git", from: "3.0.0")
+    .package(url: "https://github.com/putdotio/putio-sdk-swift.git", from: "4.0.0")
 ]
 ```
 
-With CocoaPods:
-
-```ruby
-pod 'PutioSDK'
-```
+CocoaPods is no longer supported: [trunk goes read-only](https://blog.cocoapods.org/CocoaPods-Specs-Repo/) in December 2026, and `3.8.1` is the last `PutioSDK` pod. Switch to Swift Package Manager for `4.0.0` and later.
 
 ## Quick Start
 

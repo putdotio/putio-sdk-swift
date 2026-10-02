@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       recover_version:
-        description: Existing version whose tag was created before publishing finished
+        description: Existing version whose tag has no GitHub Release
         required: true
         type: string
 
@@ -75,13 +75,6 @@ jobs:
             exit 1
           fi
 
-          # Recovery publishes the repaired podspec from main against the
-          # immutable tagged sources. Only delivery metadata may differ.
-          if ! git diff --quiet "$tag_commit" "$GITHUB_SHA" -- LICENSE PutioSDK podspec_helper.rb; then
-            echo "CocoaPods source payload changed after $tag; recovery requires a new release" >&2
-            exit 1
-          fi
-
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -106,12 +99,6 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
-        with:
-          ruby-version: .ruby-version
-          bundler-cache: true
-
       - name: Restore SwiftPM build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -119,19 +106,6 @@ jobs:
           key: ${{ runner.os }}-swiftpm-${{ github.workflow }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-swiftpm-${{ github.workflow }}-
-
-      - name: Restore CocoaPods cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            Example/Pods
-            ~/Library/Caches/CocoaPods
-          key: ${{ runner.os }}-cocoapods-${{ github.workflow }}-${{ hashFiles('Example/Podfile.lock', 'PutioSDK.podspec', 'podspec_helper.rb') }}
-          restore-keys: |
-            ${{ runner.os }}-cocoapods-${{ github.workflow }}-
-
-      - name: Bootstrap repository
-        run: make bootstrap
 
       - name: Verify repository
         run: make verify
@@ -197,12 +171,6 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
-        with:
-          ruby-version: .ruby-version
-          bundler-cache: true
-
       - name: Restore SwiftPM build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -210,17 +178,6 @@ jobs:
           key: ${{ runner.os }}-swiftpm-${{ github.workflow }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-swiftpm-${{ github.workflow }}-
-
-      - name: Restore CocoaPods cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/Library/Caches/CocoaPods
-          key: ${{ runner.os }}-cocoapods-${{ github.workflow }}-${{ hashFiles('Example/Podfile.lock', 'PutioSDK.podspec', 'podspec_helper.rb') }}
-          restore-keys: |
-            ${{ runner.os }}-cocoapods-${{ github.workflow }}-
-
-      - name: Bootstrap repository
-        run: make bootstrap
 
       - name: Configure release bot remote
         run: git remote set-url origin "https://x-access-token:${RELEASE_BOT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
@@ -239,7 +196,6 @@ jobs:
             conventional-changelog-conventionalcommits@9.3.1
         env:
           GITHUB_TOKEN: ${{ steps.release-bot.outputs.token }}
-          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
           GIT_AUTHOR_NAME: ${{ steps.release-bot.outputs.app-slug }}[bot]
           GIT_AUTHOR_EMAIL: ${{ steps.release-bot-identity.outputs.user_id }}+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: ${{ steps.release-bot.outputs.app-slug }}[bot]
@@ -250,9 +206,8 @@ jobs:
     name: Recover Swift SDK release
     needs:
       - validate_recovery
-      - verify
-    runs-on: macos-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
     concurrency:
       group: release-${{ github.repository }}-main
       cancel-in-progress: false
@@ -269,36 +224,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ github.sha }}
-
-      - name: Select latest stable Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
-        with:
-          ruby-version: .ruby-version
-
-      - name: Install release dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          bundle config set --local frozen true
-          make bootstrap
-
-      - name: Publish missing CocoaPods version
-        shell: bash
-        env:
-          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
-          VERSION: ${{ needs.validate_recovery.outputs.version }}
-        run: |
-          set -euo pipefail
-          if [[ -z "$COCOAPODS_TRUNK_TOKEN" ]]; then
-            echo "COCOAPODS_TRUNK_TOKEN is required for release recovery" >&2
-            exit 1
-          fi
-          ./scripts/publish-cocoapods.sh "$VERSION"
 
       - name: Create release bot token
         id: release-bot

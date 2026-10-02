@@ -7,22 +7,14 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 
 cd "$repo_root"
 
-profdata_path="$(find .build -path '*/debug/codecov/default.profdata' -print -quit)"
-test_binary_path="$(find .build -path '*/debug/PutioSDKPackageTests.xctest/Contents/MacOS/PutioSDKPackageTests' -print -quit)"
+# SwiftPM owns the build layout (it moved under .build/out in Xcode 27), so ask
+# it for the llvm-cov JSON export path instead of searching .build.
+coverage_json="$(swift test --show-codecov-path --enable-code-coverage)"
 
-if [ -z "${profdata_path:-}" ] || [ -z "${test_binary_path:-}" ]; then
-    echo "Coverage artifacts are missing. Run 'swift test --enable-code-coverage --filter PutioSDKTests' first."
+if [ ! -f "$coverage_json" ]; then
+    echo "Coverage report is missing. Run 'swift test --enable-code-coverage --filter PutioSDKTests' first."
     exit 1
 fi
-
-coverage_json="$(mktemp)"
-trap 'rm -f "$coverage_json"' EXIT
-
-# Xcode's llvm-cov export names the JSON export format "text".
-xcrun llvm-cov export \
-    -format=text \
-    -instr-profile "$profdata_path" \
-    "$test_binary_path" > "$coverage_json"
 
 python3 - "$coverage_json" "$repo_root" "$minimum_percent" <<'PY'
 import json

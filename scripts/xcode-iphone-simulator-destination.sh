@@ -2,14 +2,14 @@
 
 set -eu
 
-workspace=""
+project=""
 scheme=""
 minimum_os="26.0"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --workspace)
-      workspace="$2"
+    --project)
+      project="$2"
       shift 2
       ;;
     --scheme)
@@ -27,12 +27,12 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "$workspace" ] || [ -z "$scheme" ]; then
-  echo "Usage: $0 --workspace <workspace> --scheme <scheme> [--minimum-os <version>]" >&2
+if [ -z "$project" ] || [ -z "$scheme" ]; then
+  echo "Usage: $0 --project <project> --scheme <scheme> [--minimum-os <version>]" >&2
   exit 2
 fi
 
-xcodebuild -workspace "$workspace" -scheme "$scheme" -showdestinations 2>/dev/null | awk -v minimum_os="$minimum_os" '
+xcodebuild -project "$project" -scheme "$scheme" -showdestinations 2>/dev/null | awk -v minimum_os="$minimum_os" '
 function trim(value) {
   sub(/^[[:space:]]+/, "", value)
   sub(/[[:space:]]+$/, "", value)

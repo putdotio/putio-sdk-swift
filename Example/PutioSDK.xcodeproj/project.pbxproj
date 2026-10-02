@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -13,8 +13,7 @@
 		607FACDD1AFB9204008FA782 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDC1AFB9204008FA782 /* Images.xcassets */; };
 		607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDE1AFB9204008FA782 /* LaunchScreen.xib */; };
 		607FACEC1AFB9204008FA782 /* Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACEB1AFB9204008FA782 /* Tests.swift */; };
-		C3360688E59521A72E8278FC /* Pods_PutioSDK_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2487554597704BB13674151C /* Pods_PutioSDK_Tests.framework */; };
-		EC52E6B5676446D7E6E3DB30 /* Pods_PutioSDK_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E6EBAD6D4F0A6B6B250E237 /* Pods_PutioSDK_Example.framework */; };
+		5A1D0C0C2E9E000100A1B2C3 /* PutioSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 5A1D0C0B2E9E000100A1B2C3 /* PutioSDK */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,9 +29,6 @@
 /* Begin PBXFileReference section */
 		0975DE25AE7B7A22CAC8EF92 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		09E2FBC7FE74AF1ADDA23ECE /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
-		0E6EBAD6D4F0A6B6B250E237 /* Pods_PutioSDK_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_PutioSDK_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		2487554597704BB13674151C /* Pods_PutioSDK_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_PutioSDK_Tests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		5950505F610BBE2039DD7607 /* Pods-PutioSDK_Tests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioSDK_Tests.release.xcconfig"; path = "Pods/Target Support Files/Pods-PutioSDK_Tests/Pods-PutioSDK_Tests.release.xcconfig"; sourceTree = "<group>"; };
 		607FACD01AFB9204008FA782 /* PutioSDK_Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PutioSDK_Example.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACD41AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACD51AFB9204008FA782 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -43,10 +39,6 @@
 		607FACE51AFB9204008FA782 /* PutioSDK_Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PutioSDK_Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACEA1AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACEB1AFB9204008FA782 /* Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests.swift; sourceTree = "<group>"; };
-		D3F0232F530F97D8AA7C288D /* Pods-PutioSDK_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioSDK_Example.debug.xcconfig"; path = "Pods/Target Support Files/Pods-PutioSDK_Example/Pods-PutioSDK_Example.debug.xcconfig"; sourceTree = "<group>"; };
-		E3A3E259B911EFC7E9FE370F /* PutioSDK.podspec */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = PutioSDK.podspec; path = ../PutioSDK.podspec; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
-		EC74F437665BBD68DDF7602B /* Pods-PutioSDK_Tests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioSDK_Tests.debug.xcconfig"; path = "Pods/Target Support Files/Pods-PutioSDK_Tests/Pods-PutioSDK_Tests.debug.xcconfig"; sourceTree = "<group>"; };
-		F6F96589FBAF9511A70C98C4 /* Pods-PutioSDK_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioSDK_Example.release.xcconfig"; path = "Pods/Target Support Files/Pods-PutioSDK_Example/Pods-PutioSDK_Example.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,7 +46,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EC52E6B5676446D7E6E3DB30 /* Pods_PutioSDK_Example.framework in Frameworks */,
+				5A1D0C0C2E9E000100A1B2C3 /* PutioSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -62,7 +54,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C3360688E59521A72E8278FC /* Pods_PutioSDK_Tests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,12 +63,10 @@
 		607FACC71AFB9204008FA782 = {
 			isa = PBXGroup;
 			children = (
-				607FACF51AFB993E008FA782 /* Podspec Metadata */,
+				607FACF51AFB993E008FA782 /* Package Metadata */,
 				607FACD21AFB9204008FA782 /* Example for PutioSDK */,
 				607FACE81AFB9204008FA782 /* Tests */,
 				607FACD11AFB9204008FA782 /* Products */,
-				60DD32477A42D2FFE53706A5 /* Pods */,
-				7DCE53FA42886BCD468D0516 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -129,34 +118,13 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
-		607FACF51AFB993E008FA782 /* Podspec Metadata */ = {
+		607FACF51AFB993E008FA782 /* Package Metadata */ = {
 			isa = PBXGroup;
 			children = (
-				E3A3E259B911EFC7E9FE370F /* PutioSDK.podspec */,
 				09E2FBC7FE74AF1ADDA23ECE /* README.md */,
 				0975DE25AE7B7A22CAC8EF92 /* LICENSE */,
 			);
-			name = "Podspec Metadata";
-			sourceTree = "<group>";
-		};
-		60DD32477A42D2FFE53706A5 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				D3F0232F530F97D8AA7C288D /* Pods-PutioSDK_Example.debug.xcconfig */,
-				F6F96589FBAF9511A70C98C4 /* Pods-PutioSDK_Example.release.xcconfig */,
-				EC74F437665BBD68DDF7602B /* Pods-PutioSDK_Tests.debug.xcconfig */,
-				5950505F610BBE2039DD7607 /* Pods-PutioSDK_Tests.release.xcconfig */,
-			);
-			name = Pods;
-			sourceTree = "<group>";
-		};
-		7DCE53FA42886BCD468D0516 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				0E6EBAD6D4F0A6B6B250E237 /* Pods_PutioSDK_Example.framework */,
-				2487554597704BB13674151C /* Pods_PutioSDK_Tests.framework */,
-			);
-			name = Frameworks;
+			name = "Package Metadata";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -166,17 +134,18 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 607FACEF1AFB9204008FA782 /* Build configuration list for PBXNativeTarget "PutioSDK_Example" */;
 			buildPhases = (
-				33E0B92A0DFF049029A0F70F /* [CP] Check Pods Manifest.lock */,
 				607FACCC1AFB9204008FA782 /* Sources */,
 				607FACCD1AFB9204008FA782 /* Frameworks */,
 				607FACCE1AFB9204008FA782 /* Resources */,
-				01B23D3CAFC9C30360593AD1 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = PutioSDK_Example;
+			packageProductDependencies = (
+				5A1D0C0B2E9E000100A1B2C3 /* PutioSDK */,
+			);
 			productName = PutioSDK_Example;
 			productReference = 607FACD01AFB9204008FA782 /* PutioSDK_Example.app */;
 			productType = "com.apple.product-type.application";
@@ -185,7 +154,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 607FACF21AFB9204008FA782 /* Build configuration list for PBXNativeTarget "PutioSDK_Tests" */;
 			buildPhases = (
-				4DDA3A94927489A4CA1F5462 /* [CP] Check Pods Manifest.lock */,
 				607FACE11AFB9204008FA782 /* Sources */,
 				607FACE21AFB9204008FA782 /* Frameworks */,
 				607FACE31AFB9204008FA782 /* Resources */,
@@ -208,7 +176,7 @@
 			attributes = {
 				LastSwiftUpdateCheck = 0830;
 				LastUpgradeCheck = 1010;
-				ORGANIZATIONNAME = CocoaPods;
+				ORGANIZATIONNAME = put.io;
 				TargetAttributes = {
 					607FACCF1AFB9204008FA782 = {
 						CreatedOnToolsVersion = 6.3.1;
@@ -233,6 +201,9 @@
 				Base,
 			);
 			mainGroup = 607FACC71AFB9204008FA782;
+			packageReferences = (
+				5A1D0C0A2E9E000100A1B2C3 /* XCLocalSwiftPackageReference ".." */,
+			);
 			productRefGroup = 607FACD11AFB9204008FA782 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -262,71 +233,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		01B23D3CAFC9C30360593AD1 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-PutioSDK_Example/Pods-PutioSDK_Example-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/PutioSDK/PutioSDK.framework",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/PutioSDK.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-PutioSDK_Example/Pods-PutioSDK_Example-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		33E0B92A0DFF049029A0F70F /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-PutioSDK_Example-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		4DDA3A94927489A4CA1F5462 /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-PutioSDK_Tests-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		607FACCC1AFB9204008FA782 /* Sources */ = {
@@ -479,7 +385,6 @@
 		};
 		607FACF01AFB9204008FA782 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D3F0232F530F97D8AA7C288D /* Pods-PutioSDK_Example.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_FILE = PutioSDK/Info.plist;
@@ -494,7 +399,6 @@
 		};
 		607FACF11AFB9204008FA782 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F6F96589FBAF9511A70C98C4 /* Pods-PutioSDK_Example.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_FILE = PutioSDK/Info.plist;
@@ -509,7 +413,6 @@
 		};
 		607FACF31AFB9204008FA782 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EC74F437665BBD68DDF7602B /* Pods-PutioSDK_Tests.debug.xcconfig */;
 			buildSettings = {
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(SDKROOT)/Developer/Library/Frameworks",
@@ -525,13 +428,13 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PutioSDK_Example.app/PutioSDK_Example";
 			};
 			name = Debug;
 		};
 		607FACF41AFB9204008FA782 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5950505F610BBE2039DD7607 /* Pods-PutioSDK_Tests.release.xcconfig */;
 			buildSettings = {
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(SDKROOT)/Developer/Library/Frameworks",
@@ -543,6 +446,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PutioSDK_Example.app/PutioSDK_Example";
 			};
 			name = Release;
@@ -578,6 +482,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5A1D0C0A2E9E000100A1B2C3 /* XCLocalSwiftPackageReference ".." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A1D0C0B2E9E000100A1B2C3 /* PutioSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PutioSDK;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 607FACC81AFB9204008FA782 /* Project object */;
 }

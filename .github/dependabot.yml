@@ -11,17 +11,6 @@ updates:
         update-types: ["major"]
     commit-message:
       prefix: "ci"
-  - package-ecosystem: bundler
-    directory: /
-    schedule:
-      interval: monthly
-    groups:
-      bundler-patch-minor:
-        update-types: ["patch", "minor"]
-      bundler-major:
-        update-types: ["major"]
-    commit-message:
-      prefix: "chore"
   - package-ecosystem: swift
     directory: /
     schedule:
