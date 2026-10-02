@@ -27,7 +27,6 @@ What happened instead?
 ## Environment
 
 - SDK version or commit:
-- Installation method: Swift Package Manager or CocoaPods
 - Xcode version:
 - Platform and OS version:
 

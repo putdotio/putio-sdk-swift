@@ -12,15 +12,14 @@ make live-test
 `make verify` is the deterministic repo gate and requires the Swift 6.2 toolchain (Xcode 26 or newer); see [Swift Concurrency Posture](./ARCHITECTURE.md#swift-concurrency-posture) for the strict-concurrency contract. In order it runs:
 
 - `swift format lint --strict` with stock rules over the package, tests, example app, and scripts
-- `scripts/check-podspec-package.rb` through Bundler, so CocoaPods package pruning keeps `VERSION` and `podspec_helper.rb` and a downloaded helper cannot replace the active one during later platform validation
 - `scripts/check-sendable-audit.sh`, so every public `Sendable` type under `PutioSDK/Classes` is listed in the strict-concurrency audit
 - `scripts/check-transport-isolation.sh`, so `PutioSDK.request` stays caller-isolated and the `@concurrent` `perform`/`execute` bodies, and every helper in that file they reach by name, never mention `self` or read bare `config`/`delegate`; parser fixtures live under `scripts/fixtures/transport-isolation/`
 - `scripts/check-platform-simulator-destination.sh`, which covers the tvOS/watchOS destination parser against captured `simctl` listings in `scripts/fixtures/simctl/`
 - `swift test` for `PutioSDKTests` and `PutioSDKStrictConcurrencyTests` in one invocation with coverage enabled
 - `scripts/check-spm-coverage.sh 90`, failing when source line coverage for `PutioSDK/Classes` drops below `90%`
-- `swift build`, then `pod install` and an `xcodebuild` of the example-backed `PutioSDK` CocoaPods scheme
+- `swift build`, then an iOS `xcodebuild` of the example app, which links the package from this checkout
 
-`make verify-platforms` runs the deterministic suite on tvOS and watchOS simulators through the `PlatformVerify.xcworkspace` wrapper (the tracked CocoaPods `_Pods.xcodeproj` symlink breaks xcodebuild package discovery at the repository root). Tests that install a mock request handler through `installMockRequestHandler` skip on watchOS because watchOS proxies `URLSession` loads out of process and never consults custom `URLProtocol` classes; that helper is the only way to dispatch through the mock transport, so it is the single suite-level gate, and pure-logic tests run on every platform. `scripts/platform-simulator-destination.sh` picks the first available device in the matching family from `xcrun simctl list devices available` and accepts upper- or lowercase UDIDs.
+`make verify-platforms` runs the deterministic suite on tvOS and watchOS simulators through the package's `PutioSDK` scheme, limited to `PutioSDKTests`. Tests that install a mock request handler through `installMockRequestHandler` skip on watchOS because watchOS proxies `URLSession` loads out of process and never consults custom `URLProtocol` classes; that helper is the only way to dispatch through the mock transport, so it is the single suite-level gate, and pure-logic tests run on every platform. `scripts/platform-simulator-destination.sh` picks the first available device in the matching family from `xcrun simctl list devices available` and accepts upper- or lowercase UDIDs.
 
 `make verify-concurrency` runs only the strict-concurrency consumer proof, for quicker iteration.
 

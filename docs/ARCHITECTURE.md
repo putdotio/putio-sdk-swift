@@ -28,27 +28,17 @@ graph LR
 - parse external data at the boundary with `Decodable`
 - encode request query and body values through SDK-owned typed primitives instead of untyped parameter bags
 - keep media URL construction inside the SDK: callers pass the account download token, never the OAuth token, and returned media URLs stay bearer-sensitive values
-- keep the CocoaPods and Swift Package surfaces aligned
 - preserve forward compatibility where possible instead of crashing on unknown backend strings
 - keep the public API single-surface and async-first; no completion-handler wrappers
 
 ## Swift Concurrency Posture
 
-The Swift Package and CocoaPods SDK targets enable Swift's
-`NonisolatedNonsendingByDefault` upcoming feature. Their public async instance
+The `PutioSDK` target enables Swift's
+`NonisolatedNonsendingByDefault` upcoming feature. Its public async instance
 methods therefore run on the caller's actor instead of sending the mutable
 client and response models to a generic executor. This is the Swift 6.2
 behavior defined by
 [SE-0461](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0461-async-function-isolation.md).
-
-CocoaPods consumers only get this behavior on Xcode 26 and newer. Pre-Xcode-26
-toolchains silently ignore the pod's
-`SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT` `pod_target_xcconfig`
-setting (`podspec_helper.rb`), because `spec.swift_version` stays `5.0` for
-wider compatibility; those consumers keep the pre-SE-0461 default of running
-nonisolated async methods off the caller's actor instead. `Package.swift`'s
-`swiftSettings` and the podspec's `pod_target_xcconfig` carry cross-reference
-comments at both sites and must stay in sync.
 
 Consumer ownership rules:
 
