@@ -160,11 +160,12 @@ open class PutioFile: PutioBaseFile {
     try super.init(from: decoder)
   }
 
-  public func getStreamURL(token: String) -> URL? {
+  /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
+  public func getStreamURL(downloadToken: String) -> URL? {
     if type == .audio {
       return putioFileURL(
         fileID: id, pathSuffix: "stream",
-        queryItems: [URLQueryItem(name: "oauth_token", value: token)])
+        queryItems: [URLQueryItem(name: "oauth_token", value: downloadToken)])
     }
 
     if type == .video {
@@ -173,7 +174,7 @@ open class PutioFile: PutioBaseFile {
         pathSuffix: "hls/media.m3u8",
         queryItems: [
           URLQueryItem(name: "subtitle_key", value: "all"),
-          URLQueryItem(name: "oauth_token", value: token),
+          URLQueryItem(name: "oauth_token", value: downloadToken),
         ]
       )
     }
@@ -181,33 +182,37 @@ open class PutioFile: PutioBaseFile {
     return nil
   }
 
-  public func getHlsStreamURL(token: String) -> URL {
+  /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
+  public func getHlsStreamURL(downloadToken: String) -> URL {
     putioFileURL(
       fileID: id,
       pathSuffix: "hls/media.m3u8",
       queryItems: [
         URLQueryItem(name: "subtitle_key", value: "all"),
-        URLQueryItem(name: "oauth_token", value: token),
+        URLQueryItem(name: "oauth_token", value: downloadToken),
       ]
     )
   }
 
-  public func getAudioStreamURL(token: String) -> URL {
+  /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
+  public func getAudioStreamURL(downloadToken: String) -> URL {
     putioFileURL(
       fileID: id, pathSuffix: "stream",
-      queryItems: [URLQueryItem(name: "oauth_token", value: token)])
+      queryItems: [URLQueryItem(name: "oauth_token", value: downloadToken)])
   }
 
-  public func getDownloadURL(token: String) -> URL {
+  /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
+  public func getDownloadURL(downloadToken: String) -> URL {
     putioFileURL(
       fileID: id, pathSuffix: "download",
-      queryItems: [URLQueryItem(name: "oauth_token", value: token)])
+      queryItems: [URLQueryItem(name: "oauth_token", value: downloadToken)])
   }
 
-  public func getMp4DownloadURL(token: String) -> URL {
+  /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
+  public func getMp4DownloadURL(downloadToken: String) -> URL {
     putioFileURL(
       fileID: id, pathSuffix: "mp4/download",
-      queryItems: [URLQueryItem(name: "oauth_token", value: token)])
+      queryItems: [URLQueryItem(name: "oauth_token", value: downloadToken)])
   }
 }
 
@@ -353,19 +358,20 @@ open class PutioNextFile: Decodable {
     self.type = try container.decode(PutioNextFileType.self, forKey: .type)
   }
 
-  public func getStreamURL(token: String) -> URL {
+  /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
+  public func getStreamURL(downloadToken: String) -> URL {
     switch type {
     case .audio:
       return putioFileURL(
         fileID: id, pathSuffix: "stream",
-        queryItems: [URLQueryItem(name: "oauth_token", value: token)])
+        queryItems: [URLQueryItem(name: "oauth_token", value: downloadToken)])
     case .video:
       return putioFileURL(
         fileID: id,
         pathSuffix: "hls/media.m3u8",
         queryItems: [
           URLQueryItem(name: "subtitle_key", value: "all"),
-          URLQueryItem(name: "oauth_token", value: token),
+          URLQueryItem(name: "oauth_token", value: downloadToken),
         ]
       )
     }

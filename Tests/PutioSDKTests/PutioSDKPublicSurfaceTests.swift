@@ -94,7 +94,7 @@ final class PutioSDKPublicSurfaceTests: XCTestCase {
     )
 
     let resolution: PutioVideoPlaybackResolution =
-      try await sdk.resolveVideoPlaybackSource(fileID: 42)
+      try await sdk.resolveVideoPlaybackSource(fileID: 42, downloadToken: "download-token")
 
     guard case .ready(let source) = resolution else {
       return XCTFail("Expected the public resolver to return a ready source")

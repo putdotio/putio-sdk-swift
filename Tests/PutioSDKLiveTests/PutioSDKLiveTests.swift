@@ -155,9 +155,11 @@ final class PutioSDKLiveTests: XCTestCase {
       query: PutioFileSearchQuery(keyword: "mp4", perPage: 10)
     )
     let candidates = search.files.filter { $0.type == .video && !$0.isShared }
+    let downloadToken = try await LiveSupport.downloadToken(sdk: sdk)
 
     for candidate in candidates {
-      let resolution = try await sdk.resolveVideoPlaybackSource(fileID: candidate.id)
+      let resolution = try await sdk.resolveVideoPlaybackSource(
+        fileID: candidate.id, downloadToken: downloadToken)
       guard case .ready(let source) = resolution else {
         continue
       }
@@ -174,8 +176,7 @@ final class PutioSDKLiveTests: XCTestCase {
         queryItems.first(where: { $0.name == "subtitle_key" })?.value,
         "all"
       )
-      XCTAssertTrue(
-        queryItems.contains { $0.name == "oauth_token" && $0.value?.isEmpty == false })
+      XCTAssertEqual(queryItems.first(where: { $0.name == "oauth_token" })?.value, downloadToken)
       XCTAssertEqual(source.startFrom, expectedStartFrom)
       try await assertHLSPlaylistLoads(from: source.url)
       return
@@ -195,17 +196,18 @@ final class PutioSDKLiveTests: XCTestCase {
       query: PutioFileSearchQuery(keyword: "mp3", perPage: 10)
     )
     let candidates = search.files.filter { $0.type == .audio && !$0.isShared }
+    let downloadToken = try await LiveSupport.downloadToken(sdk: sdk)
 
     for candidate in candidates {
-      let source = try await sdk.resolveAudioPlaybackSource(fileID: candidate.id)
+      let source = try await sdk.resolveAudioPlaybackSource(
+        fileID: candidate.id, downloadToken: downloadToken)
       let components = try XCTUnwrap(
         URLComponents(url: source.url, resolvingAgainstBaseURL: false))
       let queryItems = components.queryItems ?? []
       let expectedStartFrom = try await sdk.getStartFrom(fileID: candidate.id)
 
       XCTAssertTrue(components.path.hasSuffix("/files/\(candidate.id)/stream"))
-      XCTAssertTrue(
-        queryItems.contains { $0.name == "oauth_token" && $0.value?.isEmpty == false })
+      XCTAssertEqual(queryItems.first(where: { $0.name == "oauth_token" })?.value, downloadToken)
       XCTAssertEqual(source.startFrom, expectedStartFrom)
       return
     }
