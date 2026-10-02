@@ -370,7 +370,8 @@ final class PutioSDKFilesTests: XCTestCase {
       urlSession: makeTestSession()
     )
 
-    let resolution = try await sdk.resolveVideoPlaybackSource(fileID: 42)
+    let resolution = try await sdk.resolveVideoPlaybackSource(
+      fileID: 42, downloadToken: "download / value")
 
     guard case .ready(let source) = resolution else {
       return XCTFail("Expected an HLS playback source")
@@ -383,7 +384,7 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(components?.host, "media.example.test")
     XCTAssertEqual(components?.path, "/custom/v2/files/42/hls/media.m3u8")
     XCTAssertEqual(queryItems["subtitle_key"], "all")
-    XCTAssertEqual(queryItems["oauth_token"], "token / value")
+    XCTAssertEqual(queryItems["oauth_token"], "download / value")
     XCTAssertEqual(source.startFrom, 91)
   }
 
@@ -412,7 +413,7 @@ final class PutioSDKFilesTests: XCTestCase {
       urlSession: makeTestSession()
     )
     let resolutionTask = Task {
-      try await owner.resolveVideoPlaybackSource(fileID: 42)
+      try await owner.resolveVideoPlaybackSource(fileID: 42, downloadToken: "download-token")
     }
 
     await fulfillment(of: [requestStarted], timeout: 5)
@@ -433,7 +434,7 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(components?.host, "old.example.test")
     XCTAssertEqual(
       components?.queryItems?.first(where: { $0.name == "oauth_token" })?.value,
-      "old-token"
+      "download-token"
     )
   }
 
@@ -451,7 +452,8 @@ final class PutioSDKFilesTests: XCTestCase {
       urlSession: makeTestSession()
     )
 
-    let resolution = try await sdk.resolveVideoPlaybackSource(fileID: 43)
+    let resolution = try await sdk.resolveVideoPlaybackSource(
+      fileID: 43, downloadToken: "download-token")
 
     XCTAssertEqual(resolution, .conversionRequired)
   }
@@ -471,7 +473,7 @@ final class PutioSDKFilesTests: XCTestCase {
     )
 
     do {
-      _ = try await sdk.resolveVideoPlaybackSource(fileID: 44)
+      _ = try await sdk.resolveVideoPlaybackSource(fileID: 44, downloadToken: "download-token")
       XCTFail("Expected a non-video file to be rejected")
     } catch let error as PutioVideoPlaybackResolutionError {
       XCTAssertEqual(error, .unsupportedFileType(.audio))
@@ -497,7 +499,7 @@ final class PutioSDKFilesTests: XCTestCase {
     )
 
     do {
-      _ = try await sdk.resolveVideoPlaybackSource(fileID: 404)
+      _ = try await sdk.resolveVideoPlaybackSource(fileID: 404, downloadToken: "download-token")
       XCTFail("Expected a missing file to fail")
     } catch let error as PutioSDKError {
       XCTAssertTrue(error.isNotFound)
@@ -519,7 +521,7 @@ final class PutioSDKFilesTests: XCTestCase {
     )
 
     do {
-      _ = try await sdk.resolveVideoPlaybackSource(fileID: 45)
+      _ = try await sdk.resolveVideoPlaybackSource(fileID: 45, downloadToken: "download-token")
       XCTFail("Expected a transport failure")
     } catch let error as PutioSDKError {
       XCTAssertTrue(error.isNetworkFailure)
@@ -557,7 +559,8 @@ final class PutioSDKFilesTests: XCTestCase {
       }
 
       do {
-        _ = try await sdk.resolveVideoPlaybackSource(fileID: testCase.fileID)
+        _ = try await sdk.resolveVideoPlaybackSource(
+          fileID: testCase.fileID, downloadToken: "download-token")
         XCTFail("Expected \(testCase.videoState) to fail decoding")
       } catch let error as PutioSDKError {
         XCTAssertTrue(error.isDecodingFailure, "\(testCase.videoState)")
@@ -592,7 +595,8 @@ final class PutioSDKFilesTests: XCTestCase {
       urlSession: makeTestSession()
     )
 
-    let source = try await sdk.resolveAudioPlaybackSource(fileID: 50)
+    let source = try await sdk.resolveAudioPlaybackSource(
+      fileID: 50, downloadToken: "download / value")
 
     let components = URLComponents(url: source.url, resolvingAgainstBaseURL: false)
     let queryItems = Dictionary(
@@ -600,7 +604,7 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(components?.scheme, "https")
     XCTAssertEqual(components?.host, "media.example.test")
     XCTAssertEqual(components?.path, "/custom/v2/files/50/stream")
-    XCTAssertEqual(queryItems, ["oauth_token": "token / value"])
+    XCTAssertEqual(queryItems, ["oauth_token": "download / value"])
     XCTAssertEqual(source.startFrom, 12)
   }
 
@@ -619,7 +623,7 @@ final class PutioSDKFilesTests: XCTestCase {
     )
 
     do {
-      _ = try await sdk.resolveAudioPlaybackSource(fileID: 42)
+      _ = try await sdk.resolveAudioPlaybackSource(fileID: 42, downloadToken: "download-token")
       XCTFail("Expected a non-audio file to be rejected")
     } catch let error as PutioAudioPlaybackResolutionError {
       XCTAssertEqual(error, .unsupportedFileType(.video))
@@ -656,7 +660,8 @@ final class PutioSDKFilesTests: XCTestCase {
       }
 
       do {
-        _ = try await sdk.resolveAudioPlaybackSource(fileID: testCase.fileID)
+        _ = try await sdk.resolveAudioPlaybackSource(
+          fileID: testCase.fileID, downloadToken: "download-token")
         XCTFail("Expected \(testCase.audioState) to fail decoding")
       } catch let error as PutioSDKError {
         XCTAssertTrue(error.isDecodingFailure, "\(testCase.audioState)")
@@ -679,7 +684,7 @@ final class PutioSDKFilesTests: XCTestCase {
     )
 
     do {
-      _ = try await sdk.resolveAudioPlaybackSource(fileID: 99)
+      _ = try await sdk.resolveAudioPlaybackSource(fileID: 99, downloadToken: "download-token")
       XCTFail("Expected the API error to propagate")
     } catch let error as PutioSDKError {
       XCTAssertTrue(error.isNotFound)
@@ -710,7 +715,8 @@ final class PutioSDKFilesTests: XCTestCase {
       urlSession: makeTestSession()
     )
 
-    let resolution = try await sdk.resolveVideoPlaybackSource(fileID: 50)
+    let resolution = try await sdk.resolveVideoPlaybackSource(
+      fileID: 50, downloadToken: "download-token")
 
     guard case .ready(let source) = resolution else {
       return XCTFail("Expected an HLS playback source")
@@ -811,25 +817,25 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(videoFile.type, .video)
     XCTAssertEqual(videoFile.metaData?.codec, "h264")
     XCTAssertEqual(
-      videoFile.getStreamURL(token: "token-123")?.absoluteString,
+      videoFile.getStreamURL(downloadToken: "token-123")?.absoluteString,
       "https://api.put.io/v2/files/42/hls/media.m3u8?subtitle_key=all&oauth_token=token-123")
     XCTAssertEqual(
-      videoFile.getHlsStreamURL(token: "token-123").absoluteString,
+      videoFile.getHlsStreamURL(downloadToken: "token-123").absoluteString,
       "https://api.put.io/v2/files/42/hls/media.m3u8?subtitle_key=all&oauth_token=token-123")
     XCTAssertEqual(
-      videoFile.getDownloadURL(token: "token-123").absoluteString,
+      videoFile.getDownloadURL(downloadToken: "token-123").absoluteString,
       "https://api.put.io/v2/files/42/download?oauth_token=token-123")
     XCTAssertEqual(
-      videoFile.getMp4DownloadURL(token: "token-123").absoluteString,
+      videoFile.getMp4DownloadURL(downloadToken: "token-123").absoluteString,
       "https://api.put.io/v2/files/42/mp4/download?oauth_token=token-123")
     XCTAssertEqual(
-      audioFile.getStreamURL(token: "token-123")?.absoluteString,
+      audioFile.getStreamURL(downloadToken: "token-123")?.absoluteString,
       "https://api.put.io/v2/files/50/stream?oauth_token=token-123")
     XCTAssertEqual(
-      audioFile.getAudioStreamURL(token: "token-123").absoluteString,
+      audioFile.getAudioStreamURL(downloadToken: "token-123").absoluteString,
       "https://api.put.io/v2/files/50/stream?oauth_token=token-123")
     XCTAssertEqual(
-      nextAudioFile.getStreamURL(token: "token-123").absoluteString,
+      nextAudioFile.getStreamURL(downloadToken: "token-123").absoluteString,
       "https://api.put.io/v2/files/51/stream?oauth_token=token-123")
     XCTAssertEqual(metadata.height, 0)
     XCTAssertEqual(metadata.width, 0)
@@ -949,8 +955,10 @@ private actor PlaybackResolverOwner {
     self.sdk = PutioSDK(config: config, urlSession: urlSession)
   }
 
-  func resolveVideoPlaybackSource(fileID: Int) async throws -> PutioVideoPlaybackResolution {
-    try await sdk.resolveVideoPlaybackSource(fileID: fileID)
+  func resolveVideoPlaybackSource(fileID: Int, downloadToken: String) async throws
+    -> PutioVideoPlaybackResolution
+  {
+    try await sdk.resolveVideoPlaybackSource(fileID: fileID, downloadToken: downloadToken)
   }
 
   func replaceConfig(_ config: PutioSDKConfig) {

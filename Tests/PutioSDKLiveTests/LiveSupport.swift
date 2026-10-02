@@ -27,6 +27,16 @@ enum LiveSupport {
     return PutioSDK(config: config)
   }
 
+  static func downloadToken(sdk: PutioSDK) async throws -> String {
+    let account = try await sdk.getAccountInfo(query: PutioAccountInfoQuery(downloadToken: true))
+    let token = account.downloadToken
+    guard !token.isEmpty else {
+      throw XCTSkip("Account info did not return a download token")
+    }
+    XCTAssertNotEqual(token, sdk.config.token)
+    return token
+  }
+
   static func uniqueName(prefix: String) -> String {
     "\(prefix)-\(UUID().uuidString.prefix(12))"
   }

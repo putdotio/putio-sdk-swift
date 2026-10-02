@@ -27,7 +27,7 @@ graph LR
 - prefer native Swift concurrency over callback-first transport code; native `URLSession` only, no third-party networking dependency
 - parse external data at the boundary with `Decodable`
 - encode request query and body values through SDK-owned typed primitives instead of untyped parameter bags
-- keep authenticated playback URL construction inside the SDK so consumers never supply or assemble token parameters, and treat returned playback URLs as bearer-sensitive values
+- keep media URL construction inside the SDK: callers pass the account download token, never the OAuth token, and returned media URLs stay bearer-sensitive values
 - keep the CocoaPods and Swift Package surfaces aligned
 - preserve forward compatibility where possible instead of crashing on unknown backend strings
 - keep the public API single-surface and async-first; no completion-handler wrappers
@@ -156,8 +156,8 @@ used for types that are not actually thread-safe:
   - `resetStartFrom`
   - `getMp4ConversionStatus`
   - `startMp4Conversion`
-  - `resolveVideoPlaybackSource` for authenticated direct HLS or an explicit conversion-required state
-  - `resolveAudioPlaybackSource` for the authenticated direct audio stream
+  - `resolveVideoPlaybackSource` for direct HLS authorized by the caller's download token, or an explicit conversion-required state
+  - `resolveAudioPlaybackSource` for the direct audio stream authorized by the caller's download token
 - `ifttt`
   - `sendIFTTTEvent`
 - `routes`

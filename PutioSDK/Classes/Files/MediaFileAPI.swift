@@ -1,7 +1,9 @@
 import Foundation
 
 extension PutioSDK {
-  public func resolveVideoPlaybackSource(fileID: Int) async throws
+  /// Resolves a video file into its HLS source. `downloadToken` is `PutioAccount.downloadToken`;
+  /// the metadata request uses the configured OAuth token, which never enters the returned URL.
+  public func resolveVideoPlaybackSource(fileID: Int, downloadToken: String) async throws
     -> PutioVideoPlaybackResolution
   {
     let operationConfig = config
@@ -23,15 +25,18 @@ extension PutioSDK {
 
     return .ready(
       PutioVideoPlaybackSource(
-        url: try makeVideoHLSURL(fileID: file.id, config: operationConfig),
+        url: try makeVideoHLSURL(
+          fileID: file.id, downloadToken: downloadToken, config: operationConfig),
         startFrom: file.startFrom
       )
     )
   }
 
-  /// Resolves an audio file into its authenticated stream source. The
-  /// returned URL carries the access token and is a bearer credential.
-  public func resolveAudioPlaybackSource(fileID: Int) async throws -> PutioAudioPlaybackSource {
+  /// Resolves an audio file into its stream source. `downloadToken` is `PutioAccount.downloadToken`;
+  /// the returned URL carries it and is a bearer credential.
+  public func resolveAudioPlaybackSource(fileID: Int, downloadToken: String) async throws
+    -> PutioAudioPlaybackSource
+  {
     let operationConfig = config
     let envelope = try await request(
       "/files/\(fileID)",
@@ -46,7 +51,8 @@ extension PutioSDK {
     }
 
     return PutioAudioPlaybackSource(
-      url: try makeAudioStreamURL(fileID: file.id, config: operationConfig),
+      url: try makeAudioStreamURL(
+        fileID: file.id, downloadToken: downloadToken, config: operationConfig),
       startFrom: file.startFrom
     )
   }
@@ -75,23 +81,29 @@ extension PutioSDK {
     try await request("/files/\(fileID)/start-from/delete", as: PutioOKResponse.self)
   }
 
-  private func makeVideoHLSURL(fileID: Int, config: PutioSDKConfig) throws -> URL {
+  private func makeVideoHLSURL(fileID: Int, downloadToken: String, config: PutioSDKConfig) throws
+    -> URL
+  {
     try makePlaybackURL(
       path: "/files/\(fileID)/hls/media.m3u8",
       query: ["subtitle_key": "all"],
+      downloadToken: downloadToken,
       config: config
     )
   }
 
-  private func makeAudioStreamURL(fileID: Int, config: PutioSDKConfig) throws -> URL {
-    try makePlaybackURL(path: "/files/\(fileID)/stream", query: [:], config: config)
+  private func makeAudioStreamURL(fileID: Int, downloadToken: String, config: PutioSDKConfig)
+    throws -> URL
+  {
+    try makePlaybackURL(
+      path: "/files/\(fileID)/stream", query: [:], downloadToken: downloadToken, config: config)
   }
 
   private func makePlaybackURL(
-    path: String, query: PutioRequestParameters, config: PutioSDKConfig
+    path: String, query: PutioRequestParameters, downloadToken: String, config: PutioSDKConfig
   ) throws -> URL {
     var query = query
-    query["oauth_token"] = .string(config.token)
+    query["oauth_token"] = .string(downloadToken)
     let requestConfig = PutioSDKRequestConfig(
       apiConfig: config,
       url: path,

@@ -101,11 +101,20 @@ do {
 
 ## Video Playback
 
-The SDK resolves video metadata and constructs the authenticated HLS URL so apps do not supply or
-assemble access-token query parameters:
+Media URLs carry the account's download token, never the OAuth token. The download token only
+authorizes file media endpoints such as streams, HLS, downloads, and subtitles, so it is the
+credential to hand to players, cast receivers, and external apps. Fetch it once from account info:
 
 ```swift
-switch try await sdk.resolveVideoPlaybackSource(fileID: 42) {
+let account = try await sdk.getAccountInfo(query: PutioAccountInfoQuery(downloadToken: true))
+let downloadToken = account.downloadToken
+```
+
+The SDK resolves video metadata with the configured OAuth token and builds the HLS URL with the
+download token:
+
+```swift
+switch try await sdk.resolveVideoPlaybackSource(fileID: 42, downloadToken: downloadToken) {
 case .ready(let source):
     play(url: source.url, startingAt: source.startFrom)
 case .conversionRequired:
@@ -120,14 +129,18 @@ Audio files resolve the same way into a direct stream source, with `startFrom` c
 position:
 
 ```swift
-let source = try await sdk.resolveAudioPlaybackSource(fileID: 50)
+let source = try await sdk.resolveAudioPlaybackSource(fileID: 50, downloadToken: downloadToken)
 play(url: source.url, startingAt: source.startFrom)
 ```
 
 Passing a non-audio file throws `PutioAudioPlaybackResolutionError.unsupportedFileType`.
 
-Returned playback URLs are bearer credentials because they contain the access token needed by the
-media endpoint. Use them only for playback; do not log, persist, or share them.
+`PutioFile` and `PutioNextFile` build the same URLs directly with `getStreamURL(downloadToken:)`,
+`getHlsStreamURL(downloadToken:)`, `getAudioStreamURL(downloadToken:)`,
+`getDownloadURL(downloadToken:)`, and `getMp4DownloadURL(downloadToken:)`.
+
+Media URLs are still bearer credentials for the account's files. Use them for playback and
+downloads; do not log or persist them.
 
 ## App Config
 
