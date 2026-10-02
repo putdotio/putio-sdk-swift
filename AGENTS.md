@@ -11,7 +11,7 @@
 - [Contributing](./CONTRIBUTING.md) for setup, verification, live tests, and the release flow
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Testing](./docs/TESTING.md) for what each verification command runs
-- [Security](./SECURITY.md)
+- [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md)
 
 ## Commands
 
