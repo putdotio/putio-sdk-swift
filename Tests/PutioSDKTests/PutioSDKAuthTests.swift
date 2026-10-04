@@ -416,7 +416,7 @@ final class PutioSDKAuthTests: XCTestCase {
       urlSession: makeTestSession()
     )
     let entry = SleepEntrySignal()
-    sdk.deviceCodePollClock = SpyClock(base: ContinuousClock(), onSleep: entry.markEntered)
+    sdk.deviceCodePollClock = SpyClock(base: ContinuousClock(), onSleep: { entry.markEntered() })
 
     let task = Task {
       try await sdk.awaitDeviceCodeAuthorization(code: "PENDING", pollInterval: .seconds(20))
@@ -550,7 +550,12 @@ final class PutioSDKAuthTests: XCTestCase {
       task.cancel()
       release.signal()
     }
-    let inFlight = await Task.detached { started.wait(timeout: .now() + 5) == .success }.value
+    // Block a GCD thread, not the cooperative pool, until the handler reports the request.
+    let inFlight = await withCheckedContinuation { continuation in
+      DispatchQueue.global().async {
+        continuation.resume(returning: started.wait(timeout: .now() + 5) == .success)
+      }
+    }
     XCTAssertTrue(inFlight, "the poll request never started")
 
     task.cancel()
@@ -682,7 +687,7 @@ private actor ObservableSleeper {
         // of hanging the suite.
         Task {
           try? await Task.sleep(for: .seconds(6))
-          await self.finish()
+          self.finish()
         }
       }
     } onCancel: {
@@ -715,7 +720,7 @@ private actor ObservableSleeper {
   private func scheduleDeadline(stage: String) {
     Task {
       try? await Task.sleep(for: .seconds(5))
-      await self.expireWaiter(stage: stage)
+      self.expireWaiter(stage: stage)
     }
   }
 
@@ -857,7 +862,7 @@ private actor PollBarrier {
   private func scheduleDeadline(stage: String) {
     Task {
       try? await Task.sleep(for: .seconds(5))
-      await self.expireWaiter(stage: stage)
+      self.expireWaiter(stage: stage)
     }
   }
 

@@ -85,13 +85,13 @@ final class PutioSDKTransportTests: XCTestCase {
       urlSession: makeTestSession()
     )
     var delegate: RecordingDelegate? = RecordingDelegate()
-    weak var weakDelegate = delegate
+    let delegateIsAlive = { [weak delegate] in delegate != nil }
     sdk.delegate = delegate
 
     async let response = sdk.logout()
     try gate.waitUntilRequestStarted()
     delegate = nil
-    XCTAssertNil(weakDelegate, "in-flight request must not retain the delegate")
+    XCTAssertFalse(delegateIsAlive(), "in-flight request must not retain the delegate")
     gate.release()
 
     do {

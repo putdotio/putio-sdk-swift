@@ -190,7 +190,7 @@ extension PutioSDK {
         }
       } catch let error as PutioSDKError where error.isNotFound {
         authorization = .expired
-      } catch let error as PutioSDKError where Task.isCancelled {
+      } catch is PutioSDKError where Task.isCancelled {
         throw CancellationError()
       }
 

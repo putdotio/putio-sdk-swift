@@ -21,9 +21,9 @@ final class PutioSDKPublicSurfaceTests: XCTestCase {
       urlSession: makeTestSession()
     )
 
-    let config = try await sdk.getConfig()
+    let config = try await sdk.getConfig(as: [String: String].self)
 
-    XCTAssertEqual(config.chromecastPlaybackType, .hls)
+    XCTAssertEqual(config["chromecast_playback_type"], "hls")
   }
 
   func testVideoPlaybackValuesCanBeConstructedByPackageConsumers() throws {
