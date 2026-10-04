@@ -6,8 +6,13 @@ import Foundation
 // `setConfigKey` leave the schema to the caller; the SDK never hardcodes keys.
 extension PutioSDK {
   /// Reads the whole config document into the app's own type. Missing keys are
-  /// the app's concern: give them defaults in the type's decoder.
-  public func getConfig<Config: Decodable>(as type: Config.Type) async throws -> Config {
+  /// the app's concern: give them defaults in the type's decoder. The SDK decodes
+  /// off the caller's actor, so the type's `Decodable` conformance must be
+  /// nonisolated; the `SendableMetatype` requirement makes the compiler flag an
+  /// actor-isolated one.
+  public func getConfig<Config: Decodable & SendableMetatype>(as type: Config.Type) async throws
+    -> Config
+  {
     let envelope = try await request("/config", as: PutioConfigDocumentEnvelope<Config>.self)
     return envelope.config
   }
@@ -27,8 +32,10 @@ extension PutioSDK {
       "/config", method: .put, body: ["config": value], as: PutioOKResponse.self)
   }
 
-  /// Reads one key of the config document.
-  public func getConfigValue<Value: Decodable>(key: String, as type: Value.Type) async throws
+  /// Reads one key of the config document. Same nonisolated-conformance rule as
+  /// `getConfig(as:)`.
+  public func getConfigValue<Value: Decodable & SendableMetatype>(key: String, as type: Value.Type)
+    async throws
     -> Value
   {
     let path = try configKeyPath(key, method: .get)

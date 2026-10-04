@@ -143,7 +143,9 @@ downloads; do not log or persist them.
 `/config` stores whatever keys an app writes. Declare the shape in the app and let the SDK carry it:
 
 ```swift
-struct AppConfig: Decodable {
+// The SDK decodes off the caller's actor; `nonisolated` keeps the conformance
+// usable there in targets with `MainActor` default isolation.
+nonisolated struct AppConfig: Decodable {
   var autoplayNextVideo: Bool
 
   enum CodingKeys: String, CodingKey {
