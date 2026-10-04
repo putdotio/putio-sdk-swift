@@ -47,7 +47,7 @@ and private age identities outside this public repository.
 
 - Conventional commits drive automated version selection through semantic-release ([.releaserc.json](./.releaserc.json)), which [ci.yml](./.github/workflows/ci.yml) runs on `main` after `make verify` and `make verify-platforms` pass
 - Swift Package Manager resolves versions from the `vX.Y.Z` tags; `scripts/prepare-release.sh` writes `VERSION`, and the GitHub Release is the only publish step. CocoaPods publishing stopped after `3.8.1`
-- GitHub release writes use `putio-releaser` through `PUTIO_RELEASE_BOT_CLIENT_ID` and `PUTIO_RELEASE_BOT_PRIVATE_KEY` in the protected `release` Environment
+- GitHub release writes use `putio-ci` through `PUTIO_CI_APP_CLIENT_ID` and `PUTIO_CI_APP_PRIVATE_KEY` in the protected `release` Environment
 - The `release` Environment is a publish-secret boundary, so the release job sets `deployment: false`; keep its deployment policy restricted to `main`, since the workflow guard is defense in depth, not the secret boundary
 - If semantic-release creates the version commit and tag but not the GitHub Release, dispatch `CI` from `main` with that exact `recover_version`
 - Recovery validates `main`, `VERSION`, and the existing tag before loading release secrets, then creates the missing GitHub Release from the tag's release commit notes; it is a no-op when the release exists
