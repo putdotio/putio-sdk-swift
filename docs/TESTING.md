@@ -12,7 +12,7 @@ make live-test
 `make verify` is the deterministic repo gate and requires the Swift 6.2 toolchain (Xcode 26 or newer); see [Swift Concurrency Posture](./ARCHITECTURE.md#swift-concurrency-posture) for the strict-concurrency contract. In order it runs:
 
 - `swift format lint --strict` with stock rules over the package, tests, example app, and scripts
-- oxfmt `--check` over the repo's Markdown, run through `npx` and needing Node `20.19` or newer; `make markdown-check` runs it alone and `npx --yes oxfmt@0.70.0 '**/*.md'` fixes findings
+- oxfmt `--check` over the repo's Markdown, run through `npx` at the version pinned in [package.json](../package.json) and needing Node `20.19` or newer; `make markdown-check` runs it alone and `npx --yes oxfmt@<version> '**/*.md'` fixes findings
 - `scripts/check-sendable-audit.sh`, so every public `Sendable` type under `PutioSDK/Classes` is listed in the strict-concurrency audit
 - `scripts/check-transport-isolation.sh`, so `PutioSDK.request` stays caller-isolated and the `@concurrent` `perform`/`execute` bodies, and every helper in that file they reach by name, never mention `self` or read bare `config`/`delegate`; parser fixtures live under `scripts/fixtures/transport-isolation/`
 - `scripts/check-platform-simulator-destination.sh`, which covers the tvOS/watchOS destination parser against captured `simctl` listings in `scripts/fixtures/simctl/`
