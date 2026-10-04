@@ -19,7 +19,7 @@ Targets are defined in the [Makefile](./Makefile); [Testing](./docs/TESTING.md#c
 
 - `make verify`: deterministic gate; use it instead of ad hoc validation commands
 - `make verify-platforms`: tvOS and watchOS lane
-- `make markdown-check`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@0.70.0 '**/*.md'` fixes findings
+- `make markdown-check`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@<version> '**/*.md'` fixes findings, with the version pinned in [package.json](./package.json)
 - `make live-test`: opt-in live suite; env in [Live Environment](./docs/TESTING.md#live-environment)
 - `make print-simulator-destination`: the iPhone simulator destination `verify` would use
 

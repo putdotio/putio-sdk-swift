@@ -1,7 +1,7 @@
 .PHONY: verify markdown-check verify-concurrency verify-spm verify-platforms coverage-check sendable-audit transport-isolation-check simulator-destination-check live-test print-simulator-destination secrets-setup secrets-clean clean
 
-# Same oxfmt release the put.io TypeScript repos run through Vite+; needs Node on PATH.
-OXFMT = npx --yes oxfmt@0.70.0
+# package.json pins oxfmt so Dependabot can bump it; needs Node on PATH.
+OXFMT = npx --yes oxfmt@$(shell node -p "require('./package.json').devDependencies.oxfmt")
 
 verify:
 	swift format lint --strict --recursive --parallel Package.swift PutioSDK Tests Example/PutioSDK Example/Tests scripts
