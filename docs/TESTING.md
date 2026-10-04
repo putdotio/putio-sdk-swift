@@ -18,7 +18,7 @@ make live-test
 - `scripts/check-platform-simulator-destination.sh`, which covers the tvOS/watchOS destination parser against captured `simctl` listings in `scripts/fixtures/simctl/`
 - `swift test` for `PutioSDKTests` and `PutioSDKStrictConcurrencyTests` in one invocation with coverage enabled
 - `scripts/check-spm-coverage.sh 90`, failing when source line coverage for `PutioSDK/Classes` drops below `90%`
-- `swift build`, then an iOS `xcodebuild` of the example app, which links the package from this checkout
+- `swift build` with `IsolatedConformances` warnings as errors, so an actor-isolated conformance reaching the `@concurrent` transport fails the gate on toolchains that diagnose it (Swift 6.4+), then an iOS `xcodebuild` of the example app, which links the package from this checkout
 
 `make verify-platforms` runs the deterministic suite on tvOS and watchOS simulators through the package's `PutioSDK` scheme, limited to `PutioSDKTests`. Tests that install a mock request handler through `installMockRequestHandler` skip on watchOS because watchOS proxies `URLSession` loads out of process and never consults custom `URLProtocol` classes; that helper is the only way to dispatch through the mock transport, so it is the single suite-level gate, and pure-logic tests run on every platform. `scripts/platform-simulator-destination.sh` picks the first available device in the matching family from `xcrun simctl list devices available` and accepts upper- or lowercase UDIDs.
 

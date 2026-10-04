@@ -24,8 +24,7 @@ let package = Package(
       dependencies: [],
       path: "PutioSDK/Classes",
       swiftSettings: [
-        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
-        .treatWarning("IsolatedConformances", as: .error),
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault")
       ]
     ),
     .testTarget(
