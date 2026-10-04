@@ -3,6 +3,8 @@
 # package.json pins oxfmt so Dependabot can bump it; needs Node on PATH.
 OXFMT = npx --yes oxfmt@$(shell node -p "require('./package.json').devDependencies.oxfmt")
 
+# IsolatedConformances is an error here, not in Package.swift: Xcode 26 passes a
+# manifest treatWarning to consumers next to -suppress-warnings and fails their build.
 verify:
 	swift format lint --strict --recursive --parallel Package.swift PutioSDK Tests Example/PutioSDK Example/Tests scripts
 	$(OXFMT) --check '**/*.md'
@@ -11,7 +13,7 @@ verify:
 	./scripts/check-platform-simulator-destination.sh
 	swift test --enable-code-coverage --filter PutioSDKTests --filter PutioSDKStrictConcurrencyTests
 	./scripts/check-spm-coverage.sh 90
-	swift build
+	swift build -Xswiftc -Werror -Xswiftc IsolatedConformances
 	@destination="$$(./scripts/xcode-iphone-simulator-destination.sh --project Example/PutioSDK.xcodeproj --scheme PutioSDK-Example 2>/dev/null || true)"; \
 	if [ -n "$$destination" ]; then \
 		echo "Using Xcode iPhone simulator destination: $$destination"; \

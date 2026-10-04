@@ -155,6 +155,8 @@ class ViewController: UIViewController {
 
 extension ViewController: ASWebAuthenticationPresentationContextProviding {
   func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-    return view.window ?? ASPresentationAnchor()
+    // The session starts from a tap on this screen, so the view is in a window.
+    guard let window = view.window else { preconditionFailure("Auth session started off-screen") }
+    return window
   }
 }
