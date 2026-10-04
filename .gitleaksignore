@@ -1,0 +1,18 @@
+# CocoaPods SPEC CHECKSUMS lines are podspec SHA-1 digests, not credentials. The Example lockfiles were removed with CocoaPods.
+0ad49c004098bbf54af623e77aff71fb42742dcb:Example/Podfile.lock:generic-api-key:22
+117cf78cd0ed30014437e23e4dae2eb7dcab030d:Example/Podfile.lock:generic-api-key:22
+2cd9c07fd4240466f3859ecea0dc7eec4d294c93:Example/Podfile.lock:generic-api-key:22
+34693e536d53e8d87333f713e583d73268967add:Example/Podfile.lock:generic-api-key:22
+8551fd2cc3f83799aa984dac3db35b7f34dd8683:Example/Podfile.lock:generic-api-key:22
+8551fd2cc3f83799aa984dac3db35b7f34dd8683:Example/Pods/Manifest.lock:generic-api-key:22
+9bf0a0c56d8ca3002522fa38dbc68792ed9678f5:Example/Podfile.lock:generic-api-key:22
+ab99479ff4410d45e60a1cd9a23e01a9ba30444e:Example/Podfile.lock:generic-api-key:22
+abd52fd6724f968e368493473f3dbbd0b473ed83:Example/Podfile.lock:generic-api-key:22
+b1d8361f9457859f0c68105ed5505fdd6d79d365:Example/Podfile.lock:generic-api-key:22
+b348586302d61ccbfe7741d80821dcfe09a4cfa9:Example/Podfile.lock:generic-api-key:22
+bd6a115fc2d0b1e65752df960c60a61032e41d6f:Example/Podfile.lock:generic-api-key:22
+c74df67b8df2a1d8bae3ed8506960464ab69bd19:Example/Podfile.lock:generic-api-key:22
+d830de42ccdd91e0d9c589581b55c7b9219785f4:Example/Podfile.lock:generic-api-key:22
+d830de42ccdd91e0d9c589581b55c7b9219785f4:Example/Pods/Manifest.lock:generic-api-key:22
+fbb8bfaae832bb2c0ee381090ad11f80a3776b3f:Example/Podfile.lock:generic-api-key:22
+fbb8bfaae832bb2c0ee381090ad11f80a3776b3f:Example/Pods/Manifest.lock:generic-api-key:22
