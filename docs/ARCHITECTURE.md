@@ -96,7 +96,10 @@ used for types that are not actually thread-safe:
 
 [Package.swift](../Package.swift) declares `swift-tools-version:6.2`;
 `PutioSDKStrictConcurrencyTests` opts into Swift language mode 6 while the
-`PutioSDK` library target stays on language mode 5.
+`PutioSDK` library target stays on language mode 5. The library target treats
+`IsolatedConformances` warnings as errors, so an actor-isolated conformance
+reaching the `@concurrent` transport fails the build; SwiftPM drops that
+setting when the package is built as a dependency.
 
 ## API Surface
 
