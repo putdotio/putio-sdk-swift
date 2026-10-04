@@ -28,7 +28,7 @@ make live-test
 
 Device-code cancellation tests drive the SDK through the internal `deviceCodePollObserver` and `deviceCodePollClock` seams instead of URLSession side effects; a test clock observes sleep entry from inside the suspension for the deterministic mid-sleep proof, while the spy-clock and default `ContinuousClock` tests only bound the cancellation response. The in-flight cancellation test holds the mock poll request open until the task is cancelled, then checks that the delegate saw nothing.
 
-[ci.yml](../.github/workflows/ci.yml) runs `make verify` on `macos-latest` with the latest stable Xcode for every pull request and push to `main`; `make verify-platforms` runs on pushes and dispatches only. Pushes whose head commit carries `[skip ci]`, such as the release commit from [.releaserc.json](../.releaserc.json), run neither lane. [links.yml](../.github/workflows/links.yml) checks relative Markdown links and anchors offline on the same pull requests and pushes.
+[ci.yml](../.github/workflows/ci.yml) runs `make verify` on `macos-latest` with the latest stable Xcode for every pull request and push to `main`; `make verify-platforms` runs on pushes and dispatches only. Pushes whose head commit carries `[skip ci]`, such as the release commit from [.releaserc.json](../.releaserc.json), run neither lane. [links.yml](../.github/workflows/links.yml) checks relative Markdown links and anchors offline on the same pull requests and pushes. [scan.yml](../.github/workflows/scan.yml) runs the shared secret scans (Gitleaks, TruffleHog) and workflow audits (Actionlint, Zizmor) on pull requests and weekly.
 
 ## Live Environment
 
