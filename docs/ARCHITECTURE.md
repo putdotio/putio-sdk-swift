@@ -50,6 +50,11 @@ Consumer ownership rules:
   between actors when needed
 - prefer calling an actor-owned SDK through actor methods instead of declaring
   the client `@unchecked Sendable`
+- give the types passed to `getConfig(as:)` and `getConfigValue(key:as:)` a
+  nonisolated `Decodable` conformance: the SDK decodes them off the caller's
+  actor, so both require `SendableMetatype`, which makes the compiler flag an
+  actor-isolated conformance; `MainActor` default isolation infers one for app
+  types, so mark such a type `nonisolated`
 
 The public query, update, error, and immutable transfer value types that contain
 only `Sendable` state declare that conformance explicitly. The older `open`

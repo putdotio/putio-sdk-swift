@@ -44,7 +44,7 @@ public final class PutioSDK {
   // compiles in Swift 5 mode, so the compiler would not catch it. The delegate crosses
   // the hop as a weak reference so an in-flight request never extends its lifetime;
   // a delegate swapped mid-request still receives that request's failure if it is alive.
-  func request<T: Decodable>(
+  func request<T: Decodable & SendableMetatype>(
     _ url: String,
     method: PutioHTTPMethod = .get,
     headers: PutioHTTPHeaders = [:],
@@ -64,10 +64,14 @@ public final class PutioSDK {
       body: body,
       redactedBodyKeys: redactedBodyKeys
     )
+    // `T: SendableMetatype` rules out an actor-isolated `Decodable` conformance (SE-0470),
+    // so `T` may decode on the global executor. Swift 6.4 still warns when `T` itself is
+    // passed to a `@concurrent` function (swiftlang/swift#91287), so the decode crosses
+    // the hop as a closure.
     return try await perform(
       requestConfig: requestConfig,
       delegateReference: PutioSDKDelegateReference(delegate, isExpectedFailure: isExpectedFailure),
-      as: type)
+      decode: { data in try JSONDecoder().decode(type, from: data) })
   }
 
   // Runs off the caller's actor (see docs/ARCHITECTURE.md#swift-concurrency-posture):
@@ -80,15 +84,15 @@ public final class PutioSDK {
   // `config`/`delegate` reads inside every `@concurrent` body in this file and in
   // every helper those bodies reach by name.
   @concurrent
-  private func perform<T: Decodable>(
+  private func perform<T>(
     requestConfig: PutioSDKRequestConfig,
     delegateReference: PutioSDKDelegateReference,
-    as type: T.Type
+    decode: @Sendable (Data) throws -> sending T
   ) async throws -> sending T {
     let data = try await execute(requestConfig: requestConfig, delegateReference: delegateReference)
 
     do {
-      return try JSONDecoder().decode(type, from: data)
+      return try decode(data)
     } catch {
       let apiError = PutioSDKError(
         request: PutioSDKErrorRequestInformation(config: requestConfig), decodingError: error,
