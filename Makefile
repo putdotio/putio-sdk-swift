@@ -1,7 +1,11 @@
-.PHONY: verify verify-concurrency verify-spm verify-platforms coverage-check sendable-audit transport-isolation-check simulator-destination-check live-test print-simulator-destination secrets-setup secrets-clean clean
+.PHONY: verify markdown-check verify-concurrency verify-spm verify-platforms coverage-check sendable-audit transport-isolation-check simulator-destination-check live-test print-simulator-destination secrets-setup secrets-clean clean
+
+# Same oxfmt release the put.io TypeScript repos run through Vite+; needs Node on PATH.
+OXFMT = npx --yes oxfmt@0.70.0
 
 verify:
 	swift format lint --strict --recursive --parallel Package.swift PutioSDK Tests Example/PutioSDK Example/Tests scripts
+	$(OXFMT) --check '**/*.md'
 	./scripts/check-sendable-audit.sh
 	./scripts/check-transport-isolation.sh
 	./scripts/check-platform-simulator-destination.sh
@@ -22,6 +26,9 @@ verify:
 # invocation, so use this target for a quicker concurrency-only check during iteration.
 verify-concurrency:
 	swift test --filter PutioSDKStrictConcurrencyTests
+
+markdown-check:
+	$(OXFMT) --check '**/*.md'
 
 verify-spm:
 	swift build

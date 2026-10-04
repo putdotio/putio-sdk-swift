@@ -15,12 +15,12 @@ graph LR
 
 ## Components
 
-| Component | Responsibility |
-| --- | --- |
-| `PutioSDK` | shared SDK entrypoint and transport composition |
-| Async methods | network endpoint methods, all `async throws`; URL builders, OAuth state, callback parsing, and token accessors are synchronous |
-| Boundary models | typed request inputs plus `Encodable` request values and `Decodable` response types |
-| Error model | typed transport, API, and decoding failures with `LocalizedError` guidance plus retry and classification helpers |
+| Component       | Responsibility                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `PutioSDK`      | shared SDK entrypoint and transport composition                                                                                |
+| Async methods   | network endpoint methods, all `async throws`; URL builders, OAuth state, callback parsing, and token accessors are synchronous |
+| Boundary models | typed request inputs plus `Encodable` request values and `Decodable` response types                                            |
+| Error model     | typed transport, API, and decoding failures with `LocalizedError` guidance plus retry and classification helpers               |
 
 ## Design Rules
 
