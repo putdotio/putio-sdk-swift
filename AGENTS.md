@@ -45,4 +45,4 @@ Targets are defined in the [Makefile](./Makefile); [Testing](./docs/TESTING.md#c
 
 ## Delivery
 
-Pull requests squash-merge to `main`. A push to `main` runs `make verify` and `make verify-platforms`; when the commits since the last tag include `feat`, `fix`, `perf`, or a breaking change, semantic-release commits `VERSION`, tags `vX.Y.Z`, and creates the GitHub Release. Swift Package Manager consumers resolve that tag directly, so the tag is the publish. `docs`, `chore`, `test`, and `ci` release nothing. Recovery and the release environment: [Releases](./CONTRIBUTING.md#releases).
+Pull requests squash-merge to `main`. A push to `main` runs `make verify` and `make verify-platforms`; when the commits since the last tag include `feat`, `fix`, `perf`, a revert, or a breaking change, semantic-release commits `VERSION`, tags `vX.Y.Z`, and creates the GitHub Release. Swift Package Manager consumers resolve that tag directly, so the tag is the publish. `docs`, `chore`, `test`, and `ci` release nothing. Recovery and the release environment: [Releases](./CONTRIBUTING.md#releases).
