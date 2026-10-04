@@ -19,6 +19,7 @@ Targets are defined in the [Makefile](./Makefile); [Testing](./docs/TESTING.md#c
 
 - `make verify`: deterministic gate; use it instead of ad hoc validation commands
 - `make verify-platforms`: tvOS and watchOS lane
+- `make markdown-check`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@0.70.0 '**/*.md'` fixes findings
 - `make live-test`: opt-in live suite; env in [Live Environment](./docs/TESTING.md#live-environment)
 - `make print-simulator-destination`: the iPhone simulator destination `verify` would use
 
@@ -38,7 +39,7 @@ Targets are defined in the [Makefile](./Makefile); [Testing](./docs/TESTING.md#c
 
 ## Proof
 
-- Docs only: no Markdown gate exists; confirm the commands and links you name resolve. No runtime proof.
+- Docs only: `make markdown-check` checks formatting, not links; confirm the commands and links you name resolve. No runtime proof.
 - Source change: `make verify`; it also builds the example app.
 - Platform-conditional code: `make verify-platforms`. Pull request CI skips it and the push to `main` runs it before release, so a tvOS or watchOS break otherwise surfaces only after merge.
 - Request or auth-flow behavior: run the example app in an iPhone simulator for the auth-flow smoke, and `make live-test` when real API behavior matters. The live account is shared and real; stay inside the [safety rules](./docs/TESTING.md#safety-rules).

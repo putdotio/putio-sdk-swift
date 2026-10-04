@@ -2,7 +2,7 @@
 
 ## Setup
 
-Requires Xcode 26 or newer (Swift 6.2 toolchain). There is nothing else to install.
+Requires Xcode 26 or newer (Swift 6.2 toolchain), and Node `20.19` or newer for the Markdown check in `make verify`.
 
 ## Run Locally
 
