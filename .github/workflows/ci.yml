@@ -137,7 +137,7 @@ jobs:
     name: Release Swift SDK
     needs:
       - verify
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     concurrency:
       group: release-${{ github.repository }}-main
@@ -181,19 +181,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Select latest stable Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Restore SwiftPM build cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .build
-          key: ${{ runner.os }}-swiftpm-${{ github.workflow }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-swiftpm-${{ github.workflow }}-
 
       - name: Configure release bot remote
         run: git remote set-url origin "https://x-access-token:${RELEASE_BOT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
