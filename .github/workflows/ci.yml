@@ -8,16 +8,27 @@ on:
   workflow_dispatch:
     inputs:
       recover_version:
-        description: Existing version whose tag has no GitHub Release
-        required: true
+        description: >-
+          Existing version whose tag has no GitHub Release. Leave empty to
+          verify and audit every workflow without recovering.
+        required: false
+        default: ""
         type: string
 
 permissions:
   contents: read
 
+# Pull requests share a group per ref so a new push cancels the stale run. Every
+# push and dispatch gets its own group, so no main run is cancelled or replaced
+# while queued and each pushed range gets scanned. The release jobs queue on
+# their own group.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   validate_recovery:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.recover_version != ''
     name: Validate release recovery
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
@@ -83,9 +94,6 @@ jobs:
     name: Verify Swift SDK
     runs-on: macos-latest
     timeout-minutes: 30
-    concurrency:
-      group: verify-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
-      cancel-in-progress: true
 
     steps:
       - name: Check out repository
@@ -116,6 +124,11 @@ jobs:
       - name: Verify tvOS and watchOS platforms
         if: github.event_name != 'pull_request'
         run: make verify-platforms
+
+      - uses: putdotio/.github/.github/actions/links@c1830f7938b7dc98f085082e988d3c46437bb15c # v1.2.0
+
+      - if: ${{ !cancelled() }}
+        uses: putdotio/.github/.github/actions/scan@c1830f7938b7dc98f085082e988d3c46437bb15c # v1.2.0
 
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
@@ -202,7 +215,7 @@ jobs:
           GIT_COMMITTER_EMAIL: ${{ steps.release-bot-identity.outputs.user_id }}+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
 
   recover_release:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.recover_version != ''
     name: Recover Swift SDK release
     needs:
       - validate_recovery
