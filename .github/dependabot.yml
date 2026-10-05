@@ -4,6 +4,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 1
     groups:
       actions-patch-minor:
         update-types: ["patch", "minor"]
@@ -15,6 +17,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 1
     groups:
       swift-patch-minor:
         update-types: ["patch", "minor"]
