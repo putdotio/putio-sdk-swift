@@ -21,7 +21,8 @@ permissions:
 # Pull requests share a group per ref so a new push cancels the stale run. Every
 # push and dispatch gets its own group, so no main run is cancelled or replaced
 # while queued and each pushed range gets scanned. The release jobs queue on
-# their own group.
+# their own group, which holds every pending release so an older run never
+# replaces a newer one.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -141,6 +142,7 @@ jobs:
     concurrency:
       group: release-${{ github.repository }}-main
       cancel-in-progress: false
+      queue: max
     environment:
       name: release
       deployment: false
@@ -225,6 +227,7 @@ jobs:
     concurrency:
       group: release-${{ github.repository }}-main
       cancel-in-progress: false
+      queue: max
     environment:
       name: release
       deployment: false
