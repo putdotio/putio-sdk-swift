@@ -1,6 +1,6 @@
 .PHONY: verify markdown-check verify-concurrency verify-spm verify-platforms coverage-check sendable-audit transport-isolation-check simulator-destination-check live-test print-simulator-destination secrets-setup secrets-clean clean
 
-# package.json pins oxfmt so Dependabot can bump it; needs Node on PATH.
+# package.json pins oxfmt so Renovate can bump it; needs Node on PATH.
 OXFMT = npx --yes oxfmt@$(shell node -p "require('./package.json').devDependencies.oxfmt")
 
 # IsolatedConformances is an error here, not in Package.swift: Xcode 26 passes a
