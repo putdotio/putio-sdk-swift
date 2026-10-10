@@ -25,7 +25,10 @@ final class PutioSDKAccountTests: XCTestCase {
                 "show_optimistic_usage": true,
                 "two_factor_enabled": true,
                 "hide_subtitles": false,
-                "dont_autoselect_subtitles": true
+                "dont_autoselect_subtitles": true,
+                "diagnostics_enabled": false,
+                "product_analytics_enabled": true,
+                "support_widget_enabled": true
               }
             }
             """
@@ -69,6 +72,8 @@ final class PutioSDKAccountTests: XCTestCase {
     XCTAssertEqual(settings.routeName, "eu-west")
     XCTAssertTrue(settings.historyEnabled)
     XCTAssertTrue(settings.dontAutoSelectSubtitles)
+    XCTAssertFalse(settings.diagnosticsEnabled)
+    XCTAssertTrue(settings.productAnalyticsEnabled)
     XCTAssertEqual(cleared.status, "OK")
     XCTAssertEqual(destroyed.status, "OK")
     XCTAssertEqual(destroyed.skipped, 0)
@@ -112,6 +117,10 @@ final class PutioSDKAccountTests: XCTestCase {
     XCTAssertFalse(settings.historyEnabled)
     XCTAssertFalse(settings.trashEnabled)
     XCTAssertFalse(settings.twoFactorEnabled)
+    XCTAssertTrue(settings.diagnosticsEnabled)
+    XCTAssertFalse(settings.productAnalyticsEnabled)
+    XCTAssertTrue(account.settings.diagnosticsEnabled)
+    XCTAssertFalse(account.settings.productAnalyticsEnabled)
     XCTAssertEqual(account.avatarURL, "")
     XCTAssertEqual(account.hash, "")
     XCTAssertEqual(account.downloadToken, "")
@@ -140,8 +149,11 @@ final class PutioSDKAccountTests: XCTestCase {
       dontAutoSelectSubtitles: false,
       tunnelRouteName: "eu-west",
       showOptimisticUsage: true,
-      sortBy: "NAME_ASC"
+      sortBy: "NAME_ASC",
+      diagnosticsEnabled: false,
+      productAnalyticsEnabled: true
     )
+    let privacyOnlyPatch = PutioAccountSettingsPatch(productAnalyticsEnabled: false)
     let twoFactor = PutioTwoFactorSettings(code: "123456", enable: true)
     let clearOptions = PutioAccountClearOptions(
       files: true,
@@ -168,6 +180,13 @@ final class PutioSDKAccountTests: XCTestCase {
     XCTAssertEqual(settingsPatch.parameters["tunnel_route_name"], .string("eu-west"))
     XCTAssertEqual(settingsPatch.parameters["show_optimistic_usage"], .bool(true))
     XCTAssertEqual(settingsPatch.parameters["sort_by"], .string("NAME_ASC"))
+    XCTAssertEqual(settingsPatch.parameters["diagnostics_enabled"], .bool(false))
+    XCTAssertEqual(settingsPatch.parameters["product_analytics_enabled"], .bool(true))
+    XCTAssertEqual(privacyOnlyPatch.parameters, ["product_analytics_enabled": .bool(false)])
+    XCTAssertEqual(
+      PutioAccountSettingsPatch(diagnosticsEnabled: true).parameters,
+      ["diagnostics_enabled": .bool(true)])
+    XCTAssertTrue(PutioAccountSettingsPatch().parameters.isEmpty)
     XCTAssertEqual(twoFactor.parameters["code"], .string("123456"))
     XCTAssertEqual(twoFactor.parameters["enable"], .bool(true))
     XCTAssertEqual(

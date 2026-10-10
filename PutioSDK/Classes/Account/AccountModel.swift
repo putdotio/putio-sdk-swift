@@ -45,6 +45,8 @@ open class PutioAccount: Decodable {
     open var twoFactorEnabled: Bool
     open var hideSubtitles: Bool
     open var dontAutoSelectSubtitles: Bool
+    open var diagnosticsEnabled: Bool
+    open var productAnalyticsEnabled: Bool
 
     enum CodingKeys: String, CodingKey {
       case routeName = "tunnel_route_name"
@@ -57,6 +59,8 @@ open class PutioAccount: Decodable {
       case twoFactorEnabled = "two_factor_enabled"
       case hideSubtitles = "hide_subtitles"
       case dontAutoSelectSubtitles = "dont_autoselect_subtitles"
+      case diagnosticsEnabled = "diagnostics_enabled"
+      case productAnalyticsEnabled = "product_analytics_enabled"
     }
 
     public required init(from decoder: Decoder) throws {
@@ -78,6 +82,10 @@ open class PutioAccount: Decodable {
       self.hideSubtitles = try container.decodeIfPresent(Bool.self, forKey: .hideSubtitles) ?? false
       self.dontAutoSelectSubtitles =
         try container.decodeIfPresent(Bool.self, forKey: .dontAutoSelectSubtitles) ?? false
+      self.diagnosticsEnabled =
+        try container.decodeIfPresent(Bool.self, forKey: .diagnosticsEnabled) ?? true
+      self.productAnalyticsEnabled =
+        try container.decodeIfPresent(Bool.self, forKey: .productAnalyticsEnabled) ?? false
     }
   }
 
@@ -181,6 +189,8 @@ public struct PutioAccountSettingsPatch: Sendable {
   public let tunnelRouteName: String?
   public let showOptimisticUsage: Bool?
   public let sortBy: String?
+  public let diagnosticsEnabled: Bool?
+  public let productAnalyticsEnabled: Bool?
 
   public init(
     historyEnabled: Bool? = nil,
@@ -189,7 +199,9 @@ public struct PutioAccountSettingsPatch: Sendable {
     dontAutoSelectSubtitles: Bool? = nil,
     tunnelRouteName: String? = nil,
     showOptimisticUsage: Bool? = nil,
-    sortBy: String? = nil
+    sortBy: String? = nil,
+    diagnosticsEnabled: Bool? = nil,
+    productAnalyticsEnabled: Bool? = nil
   ) {
     self.historyEnabled = historyEnabled
     self.trashEnabled = trashEnabled
@@ -198,6 +210,8 @@ public struct PutioAccountSettingsPatch: Sendable {
     self.tunnelRouteName = tunnelRouteName
     self.showOptimisticUsage = showOptimisticUsage
     self.sortBy = sortBy
+    self.diagnosticsEnabled = diagnosticsEnabled
+    self.productAnalyticsEnabled = productAnalyticsEnabled
   }
 
   var parameters: PutioRequestParameters {
@@ -211,6 +225,10 @@ public struct PutioAccountSettingsPatch: Sendable {
     if let tunnelRouteName { body["tunnel_route_name"] = .string(tunnelRouteName) }
     if let showOptimisticUsage { body["show_optimistic_usage"] = .bool(showOptimisticUsage) }
     if let sortBy { body["sort_by"] = .string(sortBy) }
+    if let diagnosticsEnabled { body["diagnostics_enabled"] = .bool(diagnosticsEnabled) }
+    if let productAnalyticsEnabled {
+      body["product_analytics_enabled"] = .bool(productAnalyticsEnabled)
+    }
     return body
   }
 }
