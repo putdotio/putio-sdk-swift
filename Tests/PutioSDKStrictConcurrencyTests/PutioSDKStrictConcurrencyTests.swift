@@ -28,6 +28,7 @@ final class PutioSDKStrictConcurrencyTests: XCTestCase {
     requireSendable(PutioAudioPlaybackSource.self)
     requireSendable(PutioAudioPlaybackResolutionError.self)
     requireSendable(PutioMp4ConversionStatus.self)
+    requireSendable(PutioAccountStatus.self)
     requireSendable(PutioAccountInfoQuery.self)
     requireSendable(PutioAccountSettingsPatch.self)
     requireSendable(PutioTwoFactorSettings.self)

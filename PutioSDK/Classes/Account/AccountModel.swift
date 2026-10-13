@@ -1,5 +1,17 @@
 import Foundation
 
+public struct PutioAccountStatus: RawRepresentable, Equatable, Sendable {
+  public let rawValue: String
+
+  public init(rawValue: String) {
+    self.rawValue = rawValue
+  }
+
+  public static let active = PutioAccountStatus(rawValue: "active")
+  public static let inactive = PutioAccountStatus(rawValue: "inactive")
+  public static let stranger = PutioAccountStatus(rawValue: "stranger")
+}
+
 open class PutioAccount: Decodable {
   open var id: Int
   open var username: String
@@ -9,7 +21,9 @@ open class PutioAccount: Decodable {
   open var features: [String: Bool]
   open var downloadToken: String
   open var trashSize: Int64
+  open var accountStatus: PutioAccountStatus?
   open var accountActive: Bool
+  open var isSubAccount: Bool
   open var filesWillBeDeletedAt: String
   open var passwordLastChangedAt: String
 
@@ -100,7 +114,9 @@ open class PutioAccount: Decodable {
     case features
     case downloadToken = "download_token"
     case trashSize = "trash_size"
+    case accountStatus = "account_status"
     case accountActive = "account_active"
+    case isSubAccount = "is_sub_account"
     case filesWillBeDeletedAt = "files_will_be_deleted_at"
     case passwordLastChangedAt = "password_last_changed_at"
     case disk
@@ -117,7 +133,10 @@ open class PutioAccount: Decodable {
     self.features = try container.decodeIfPresent([String: Bool].self, forKey: .features) ?? [:]
     self.downloadToken = try container.decodeIfPresent(String.self, forKey: .downloadToken) ?? ""
     self.trashSize = try container.decodeIfPresent(Int64.self, forKey: .trashSize) ?? 0
+    self.accountStatus = try container.decodeIfPresent(String.self, forKey: .accountStatus).map(
+      PutioAccountStatus.init(rawValue:))
     self.accountActive = try container.decodeIfPresent(Bool.self, forKey: .accountActive) ?? false
+    self.isSubAccount = try container.decodeIfPresent(Bool.self, forKey: .isSubAccount) ?? false
     self.filesWillBeDeletedAt =
       try container.decodeIfPresent(String.self, forKey: .filesWillBeDeletedAt) ?? ""
     self.passwordLastChangedAt =
