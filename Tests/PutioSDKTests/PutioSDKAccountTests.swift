@@ -126,10 +126,67 @@ final class PutioSDKAccountTests: XCTestCase {
     XCTAssertEqual(account.downloadToken, "")
     XCTAssertEqual(account.trashSize, 0)
     XCTAssertEqual(account.features, [:])
+    XCTAssertNil(account.accountStatus)
+    XCTAssertFalse(account.isSubAccount)
     XCTAssertEqual(account.filesWillBeDeletedAt, "")
     XCTAssertEqual(account.passwordLastChangedAt, "")
     XCTAssertTrue(PutioClearDataOptionKeys.contains("history"))
     XCTAssertTrue(PutioClearDataOptionKeys.contains("trash"))
+  }
+
+  func testAccountDecodesInactiveStatusForFamilyMember() throws {
+    let account = try JSONDecoder().decode(
+      PutioAccount.self,
+      from: Data(
+        """
+        {
+          "user_id": 1,
+          "username": "alice",
+          "mail": "alice@example.com",
+          "account_status": "inactive",
+          "account_active": false,
+          "is_sub_account": true,
+          "files_will_be_deleted_at": "2026-11-01T00:00:00",
+          "disk": {
+            "avail": 100,
+            "size": 200,
+            "used": 100
+          },
+          "settings": {}
+        }
+        """.utf8
+      )
+    )
+
+    XCTAssertEqual(account.accountStatus, .inactive)
+    XCTAssertFalse(account.accountActive)
+    XCTAssertTrue(account.isSubAccount)
+    XCTAssertEqual(account.filesWillBeDeletedAt, "2026-11-01T00:00:00")
+  }
+
+  func testAccountStatusKeepsUnknownValues() throws {
+    let account = try JSONDecoder().decode(
+      PutioAccount.self,
+      from: Data(
+        """
+        {
+          "user_id": 1,
+          "username": "alice",
+          "mail": "alice@example.com",
+          "account_status": "suspended",
+          "disk": {
+            "avail": 100,
+            "size": 200,
+            "used": 100
+          },
+          "settings": {}
+        }
+        """.utf8
+      )
+    )
+
+    XCTAssertEqual(account.accountStatus?.rawValue, "suspended")
+    XCTAssertNotEqual(account.accountStatus, .inactive)
   }
 
   func testTypedAccountInputsBuildExpectedParameters() {
