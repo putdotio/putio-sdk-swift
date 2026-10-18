@@ -22,7 +22,7 @@ Run the repo-local verification command before opening or updating a pull reques
 make verify
 ```
 
-[Testing](./docs/TESTING.md) lists what `make verify`, `make verify-platforms`, and `make live-test` run. `make verify` prefers an Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to a generic iOS Simulator destination, which needs the iOS platform installed in Xcode; `make print-simulator-destination` shows the destination it would use.
+[Testing](./docs/testing.md) lists what `make verify`, `make verify-platforms`, and `make live-test` run. `make verify` prefers an Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to a generic iOS Simulator destination, which needs the iOS platform installed in Xcode; `make print-simulator-destination` shows the destination it would use.
 
 For real API verification, use the separate live lane. Maintainers with an
 authorized age identity materialize the supplied SOPS ciphertext into an
@@ -34,7 +34,7 @@ make live-test
 make secrets-clean
 ```
 
-[Live Environment](./docs/TESTING.md#live-environment) in Testing has the
+[Live Environment](./docs/testing.md#live-environment) in Testing has the
 supported variables, load order, and safety rules. Keep ciphertext coordinates
 and private age identities outside this public repository.
 

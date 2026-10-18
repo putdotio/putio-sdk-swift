@@ -74,7 +74,7 @@ public final class PutioSDK {
       decode: { data in try JSONDecoder().decode(type, from: data) })
   }
 
-  // Runs off the caller's actor (see docs/ARCHITECTURE.md#swift-concurrency-posture):
+  // Runs off the caller's actor (see docs/architecture.md#swift-concurrency-posture):
   // `NonisolatedNonsendingByDefault` would otherwise inherit the caller's isolation for
   // this async body, forcing JSON encode/decode and delegate callbacks onto a `@MainActor`
   // consumer's main thread. `@concurrent` keeps that work on the global executor while the

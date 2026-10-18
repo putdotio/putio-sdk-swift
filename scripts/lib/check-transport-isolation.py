@@ -2,7 +2,7 @@
 
 Usage: check-transport-isolation.py <swift-file>
 
-Rules (see docs/ARCHITECTURE.md, "Internal transport isolation"):
+Rules (see docs/architecture.md, "Internal transport isolation"):
   * `request` must not be `@concurrent`; it snapshots `config`/`delegate` on the
     caller's actor.
   * `perform` and `execute` must both be `@concurrent`.

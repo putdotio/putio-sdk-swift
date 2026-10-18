@@ -103,7 +103,7 @@ final class PutioSDKTransportTests: XCTestCase {
     XCTAssertNil(sdk.delegate)
   }
 
-  // docs/ARCHITECTURE.md contract: delegate callbacks come from the global executor,
+  // docs/architecture.md contract: delegate callbacks come from the global executor,
   // never inline on the caller's actor. Calling from the main actor makes "not on the
   // main thread" a faithful proxy for "off the caller's actor".
   @MainActor

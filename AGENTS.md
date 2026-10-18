@@ -9,18 +9,18 @@
 
 - [Overview](./README.md)
 - [Contributing](./CONTRIBUTING.md) for setup, verification, live tests, and the release flow
-- [Architecture](./docs/ARCHITECTURE.md)
-- [Testing](./docs/TESTING.md) for what each verification command runs
+- [Architecture](./docs/architecture.md)
+- [Testing](./docs/testing.md) for what each verification command runs
 - [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md)
 
 ## Commands
 
-Targets are defined in the [Makefile](./Makefile); [Testing](./docs/TESTING.md#commands) lists what each lane runs.
+Targets are defined in the [Makefile](./Makefile); [Testing](./docs/testing.md#commands) lists what each lane runs.
 
 - `make verify`: deterministic gate; use it instead of ad hoc validation commands
 - `make verify-platforms`: tvOS and watchOS lane
 - `make markdown-check`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@<version> '**/*.md'` fixes findings, with the version pinned in [package.json](./package.json)
-- `make live-test`: opt-in live suite; env in [Live Environment](./docs/TESTING.md#live-environment)
+- `make live-test`: opt-in live suite; env in [Live Environment](./docs/testing.md#live-environment)
 - `make print-simulator-destination`: the iPhone simulator destination `verify` would use
 
 ## Worktrees
@@ -42,7 +42,7 @@ Targets are defined in the [Makefile](./Makefile); [Testing](./docs/TESTING.md#c
 - Docs only: `make markdown-check` checks formatting, not links; confirm the commands and links you name resolve. No runtime proof.
 - Source change: `make verify`; it also builds the example app.
 - Platform-conditional code: `make verify-platforms`. Pull request CI skips it and the push to `main` runs it before release, so a tvOS or watchOS break otherwise surfaces only after merge.
-- Request or auth-flow behavior: run the example app in an iPhone simulator for the auth-flow smoke, and `make live-test` when real API behavior matters. The live account is shared and real; stay inside the [safety rules](./docs/TESTING.md#safety-rules).
+- Request or auth-flow behavior: run the example app in an iPhone simulator for the auth-flow smoke, and `make live-test` when real API behavior matters. The live account is shared and real; stay inside the [safety rules](./docs/testing.md#safety-rules).
 
 ## Delivery
 
