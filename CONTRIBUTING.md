@@ -2,7 +2,7 @@
 
 ## Setup
 
-Requires Xcode 26 or newer (Swift 6.2 toolchain), and Node `20.19` or newer for the Markdown check in `make verify`.
+Requires Xcode 26 or newer (Swift 6.2 toolchain), and Node `20.19+` or `22.12+` for the Markdown check in `make verify`.
 
 ## Run Locally
 
@@ -16,7 +16,7 @@ Any iPhone simulator on iOS `26.0` or newer works for interactive example runs.
 
 ## Validation
 
-Run the repo-local verification command before opening or updating a pull request:
+Run the gate before opening or updating a pull request:
 
 ```bash
 make verify
@@ -37,11 +37,6 @@ make secrets-clean
 [Live Environment](./docs/testing.md#live-environment) in Testing has the
 supported variables, load order, and safety rules. Keep ciphertext coordinates
 and private age identities outside this public repository.
-
-## Development Notes
-
-- Keep `README.md` consumer-facing and put contributor workflow here
-- Keep tokens, private API credentials, and release-only secrets out of commits
 
 ## Releases
 
