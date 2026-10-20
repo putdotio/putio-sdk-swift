@@ -1,49 +1,46 @@
 # Agent Guide
 
-## Repo
+Public Swift SDK for the put.io API; its first-party consumer is
+[putio-ios](https://github.com/putdotio/putio-ios). Read
+[Architecture](./docs/architecture.md) before changing the transport, concurrency
+posture, or public types, and [Testing](./docs/testing.md) for what each lane runs
+and the live environment.
 
-- Swift SDK for the put.io API; the first-party consumer is [putio-ios](https://github.com/putdotio/putio-ios)
-- Distribution: Swift Package Manager only (CocoaPods stopped at `3.8.1`), with an example app project
+## Boundaries
 
-## Start Here
+- The package is open source: keep first-party client identifiers, callback URLs,
+  and token-scope details out of code, docs, and the example app, and use
+  placeholders such as `<your-client-id>`.
+- Live-test credentials live in an ignored `.env.local`:
+  `PUTIO_SDK_SWIFT_SOPS_FILE=/path/to/swift.sops.env make secrets-setup` writes it,
+  and `make secrets-clean` removes it before you remove a worktree.
 
-- [Overview](./README.md)
-- [Contributing](./CONTRIBUTING.md) for setup, verification, live tests, and the release flow
-- [Architecture](./docs/architecture.md)
-- [Testing](./docs/testing.md) for what each verification command runs
-- [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md)
+## Formatting
 
-## Commands
-
-Targets are defined in the [Makefile](./Makefile); [Testing](./docs/testing.md#commands) lists what each lane runs.
-
-- `make verify`: deterministic gate; use it instead of ad hoc validation commands
-- `make verify-platforms`: tvOS and watchOS lane
-- `make markdown-check`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@<version> '**/*.md'` fixes findings, with the version pinned in [package.json](./package.json)
-- `make live-test`: opt-in live suite; env in [Live Environment](./docs/testing.md#live-environment)
-- `make print-simulator-destination`: the iPhone simulator destination `verify` would use
-
-## Worktrees
-
-`.worktreeinclude` carries `.env` and `.env.local` into Codex and Claude worktrees. Use
-`make secrets-setup` with
-`PUTIO_SDK_SWIFT_SOPS_FILE` if live-test env is missing or stale, and
-`make secrets-clean` before removing the worktree.
-
-## Repo-Specific Guidance
-
-- Keep the public package surface open-source-safe: no first-party client identifiers, callback URLs, or token-scope details in code, docs, or the example app
-- The GitHub repository is `putio-sdk-swift`; the Swift Package product and module are both `PutioSDK`, and public types use the `Putio` prefix
-- `make verify` starts with `swift format lint --strict` using the Xcode toolchain's stock rules; run `swift format --in-place --recursive --parallel` on the same paths to fix violations
-- Update docs when package metadata, release flow, or verification changes
+`make verify` starts with `swift format lint --strict` on stock rules; fix findings
+with `swift format --in-place --recursive --parallel` on the paths the
+[Makefile](./Makefile) lints. For Markdown, run
+`npx --yes oxfmt@<version> '**/*.md'` with the version pinned in
+[package.json](./package.json).
 
 ## Proof
 
-- Docs only: `make markdown-check` checks formatting, not links; confirm the commands and links you name resolve. No runtime proof.
-- Source change: `make verify`; it also builds the example app.
-- Platform-conditional code: `make verify-platforms`. Pull request CI skips it and the push to `main` runs it before release, so a tvOS or watchOS break otherwise surfaces only after merge.
-- Request or auth-flow behavior: run the example app in an iPhone simulator for the auth-flow smoke, and `make live-test` when real API behavior matters. The live account is shared and real; stay inside the [safety rules](./docs/testing.md#safety-rules).
+- Docs only: `make markdown-check`; CI checks relative links and anchors, so
+  check web links and commands yourself.
+- Source: `make verify`, which also builds the example app.
+- Platform-conditional code: `make verify-platforms`. Pull request CI skips it,
+  so a tvOS or watchOS break otherwise surfaces only after merge, where it
+  blocks the release.
+- Request or auth-flow behavior: the [example app](./Example/README.md) sign-in
+  smoke in an iPhone simulator, and `make live-test` when real API behavior
+  matters. The live account is shared and real; stay inside the
+  [safety rules](./docs/testing.md#safety-rules).
 
 ## Delivery
 
-Pull requests squash-merge to `main`. A push to `main` runs `make verify` and `make verify-platforms`; when the commits since the last tag include `feat`, `fix`, `perf`, a revert, or a breaking change, semantic-release commits `VERSION`, tags `vX.Y.Z`, and creates the GitHub Release. Swift Package Manager consumers resolve that tag directly, so the tag is the publish. `docs`, `chore`, `test`, and `ci` release nothing. Recovery and the release environment: [Releases](./CONTRIBUTING.md#releases).
+Merging to `main` publishes. When the commits since the last tag include `feat`,
+`fix`, `perf`, a revert, or a breaking change, semantic-release commits `VERSION`,
+tags `vX.Y.Z`, and creates the GitHub Release; Swift Package Manager consumers
+resolve that tag directly. Other commit types release nothing, so the commit type
+decides the release. When a tag exists without its GitHub Release, follow
+[Releases](./CONTRIBUTING.md#releases).
