@@ -77,6 +77,17 @@ let sdk = PutioSDK(
 )
 ```
 
+## Concurrency
+
+Public async methods run on the caller's actor.
+
+- Keep each `PutioSDK` instance, its `config` and `delegate`, and the mutable
+  response models on one actor; never capture them in detached or concurrent
+  tasks.
+- Pass only `Sendable` inputs and immutable results between actors.
+- Types passed to `getConfig(as:)` need a `nonisolated` `Decodable`
+  conformance.
+
 ## Error Handling
 
 SDK errors are `PutioSDKError` values. They conform to `LocalizedError` and expose classification helpers:
@@ -172,7 +183,6 @@ Generate a state with `try PutioSDK.generateOAuthState()`, pass it to `getAuthUR
 ## Docs
 
 - [Contributing](./CONTRIBUTING.md): setup, checks, live tests, and releases
-- [Architecture](./docs/architecture.md): design rules and concurrency posture
 - [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md):
   private vulnerability reports
 - [Agent guide](./AGENTS.md)
