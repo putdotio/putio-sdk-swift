@@ -3,8 +3,8 @@
 Public Swift SDK for the put.io API; its first-party consumer is
 [putio-ios](https://github.com/putdotio/putio-ios). Read
 [Architecture](./docs/architecture.md) before changing the transport, concurrency
-posture, or public types, and [Testing](./docs/testing.md) for what each lane runs
-and the live environment.
+posture, or public types, and [Contributing](./CONTRIBUTING.md) for the check
+lanes and the live environment.
 
 ## Boundaries
 
@@ -34,7 +34,7 @@ with `swift format --in-place --recursive --parallel` on the paths the
 - Request or auth-flow behavior: the [example app](./Example/README.md) sign-in
   smoke in an iPhone simulator, and `make live-test` when real API behavior
   matters. The live account is shared and real; stay inside the
-  [safety rules](./docs/testing.md#safety-rules).
+  [safety rules](./CONTRIBUTING.md#safety-rules).
 
 ## Delivery
 
