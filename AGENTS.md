@@ -38,9 +38,5 @@ with `swift format --in-place --recursive --parallel` on the paths the
 
 ## Delivery
 
-Merging to `main` publishes. When the commits since the last tag include `feat`,
-`fix`, `perf`, a revert, or a breaking change, semantic-release commits `VERSION`,
-tags `vX.Y.Z`, and creates the GitHub Release; Swift Package Manager consumers
-resolve that tag directly. Other commit types release nothing, so the commit type
-decides the release. When a tag exists without its GitHub Release, follow
-[Releases](./CONTRIBUTING.md#releases).
+Merging to `main` publishes, and the commit type decides the release
+([Releases](./CONTRIBUTING.md#releases)).

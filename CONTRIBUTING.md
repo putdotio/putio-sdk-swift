@@ -77,19 +77,15 @@ skipped instead of changing the shared setting.
 
 ## Releases
 
-- Merging to `main` runs semantic-release
-  ([.releaserc.json](./.releaserc.json)) after `make verify` and
-  `make verify-platforms` pass. It writes `VERSION`, tags `vX.Y.Z`, and creates
-  the GitHub Release; Swift Package Manager resolves the tag.
-- The `putio-ci` app writes releases through `PUTIO_CI_APP_CLIENT_ID` and
-  `PUTIO_CI_APP_PRIVATE_KEY` in the protected `release` Environment. The release
-  job sets `deployment: false`. Keep the Environment's deployment policy
-  restricted to `main`: it is the secret boundary, and the workflow guard is
-  only defense in depth.
-- If a version commit and tag exist without a GitHub Release, dispatch `CI`
-  from `main` with that `recover_version`. Recovery checks `main`, `VERSION`,
-  and the tag before it loads secrets, then creates the missing release from
-  the tag's commit notes. A dispatch without `recover_version` only verifies.
+Merging to `main` publishes: [semantic-release](./.releaserc.json) tags a
+release when the commits include `feat`, `fix`, `perf`, a revert, or a breaking
+change, so the commit type decides the release. To recover a tag without its
+GitHub Release, dispatch [CI](./.github/workflows/ci.yml) with
+`recover_version`.
+
+Keep the `release` Environment's deployment policy restricted to `main`. It is
+the secret boundary for the `putio-ci` app key; the workflow guard is only
+defense in depth.
 
 ## Pull Requests
 
