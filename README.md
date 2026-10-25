@@ -38,7 +38,7 @@ dependencies: [
 ]
 ```
 
-CocoaPods is no longer supported: [trunk goes read-only](https://blog.cocoapods.org/CocoaPods-Specs-Repo/) in December 2026, and `3.8.1` is the last `PutioSDK` pod. Switch to Swift Package Manager for `4.0.0` and later.
+CocoaPods is not supported: `3.8.1` is the last `PutioSDK` pod.
 
 ## Quick Start
 
@@ -85,8 +85,6 @@ Public async methods run on the caller's actor.
   response models on one actor; never capture them in detached or concurrent
   tasks.
 - Pass only `Sendable` inputs and immutable results between actors.
-- Types passed to `getConfig(as:)` need a `nonisolated` `Decodable`
-  conformance.
 
 ## Error Handling
 
@@ -142,9 +140,7 @@ play(url: source.url, startingAt: source.startFrom)
 
 Passing a non-audio file throws `PutioAudioPlaybackResolutionError.unsupportedFileType`.
 
-`PutioFile` and `PutioNextFile` build the same URLs directly with `getStreamURL(downloadToken:)`,
-`getHlsStreamURL(downloadToken:)`, `getAudioStreamURL(downloadToken:)`,
-`getDownloadURL(downloadToken:)`, and `getMp4DownloadURL(downloadToken:)`.
+`PutioFile` and `PutioNextFile` also build these URLs directly from a download token.
 
 Media URLs are still bearer credentials for the account's files: never log or persist them.
 

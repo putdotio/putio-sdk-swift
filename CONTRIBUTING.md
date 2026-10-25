@@ -3,13 +3,8 @@
 ## Setup
 
 Requires Xcode 26 or newer (Swift 6.2) and Node `20.19+` or `22.12+` for the
-Markdown check.
-
-Open the example app, which links the package from this checkout:
-
-```bash
-open Example/PutioSDK.xcodeproj
-```
+Markdown check. The [example app](./Example/README.md) links the package from
+this checkout.
 
 ## Validation
 
@@ -20,21 +15,7 @@ make verify-concurrency   # strict-concurrency consumer proof only
 make markdown-check       # Markdown format only
 ```
 
-The [Makefile](./Makefile) lists what each target runs. Run `make verify`
-before you open or update a pull request.
-
-- It builds the example app on an iPhone simulator on iOS `26.0+`, or on a
-  generic iOS Simulator destination when Xcode advertises none.
-  `make print-simulator-destination` shows the choice.
-- Fix Swift format findings with
-  `swift format --in-place --recursive --parallel` on the paths `make verify`
-  lints, and Markdown with `npx --yes oxfmt@<version> '**/*.md'` at the version
-  in [package.json](./package.json).
-- Pull-request CI skips `make verify-platforms`; it runs on pushes to `main`
-  ([ci.yml](./.github/workflows/ci.yml)).
-- On watchOS, `URLSession` loads run out of process and never reach a custom
-  `URLProtocol`. Tests that install a mock through `installMockRequestHandler`
-  skip there, so keep that helper the only way into the mock transport.
+The [Makefile](./Makefile) lists what each target runs.
 
 ## Live Environment
 
@@ -50,11 +31,9 @@ make live-test
 make secrets-clean   # before you remove the worktree
 ```
 
-To use your own credentials, copy [.env.example](./.env.example).
-[LiveSupport.swift](./Tests/PutioSDKLiveTests/LiveSupport.swift) reads the
-variables from the environment first, then `.env.local`, then `.env`; tests
-skip without a token. Keep ciphertext coordinates and age identities out of
-this public repository.
+To use your own credentials, copy [.env.example](./.env.example) to
+`.env.local`. Keep ciphertext coordinates and age identities out of this public
+repository.
 
 ### Safety Rules
 
@@ -72,9 +51,6 @@ Excluded:
 - trash emptying
 - any mutation without cleanup
 
-When the account has trash disabled, the disposable flow reports restore as
-skipped instead of changing the shared setting.
-
 ## Releases
 
 Merging to `main` publishes: [semantic-release](./.releaserc.json) tags a
@@ -86,10 +62,3 @@ GitHub Release, dispatch [CI](./.github/workflows/ci.yml) with
 Keep the `release` Environment's deployment policy restricted to `main`. It is
 the secret boundary for the `putio-ci` app key; the workflow guard is only
 defense in depth.
-
-## Pull Requests
-
-- Add or update verification when behavior changes.
-- Update docs when setup, release, or package expectations change.
-- Fill in the [pull request template](./.github/pull_request_template.md).
-- Keep unrelated cleanup in follow-up pull requests.
