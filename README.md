@@ -172,7 +172,6 @@ Generate a state with `try PutioSDK.generateOAuthState()`, pass it to `getAuthUR
 ## Docs
 
 - [Contributing](./CONTRIBUTING.md): setup, checks, live tests, and releases
-- [Architecture](./docs/architecture.md): design rules and concurrency posture
 - [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md):
   private vulnerability reports
 - [Agent guide](./AGENTS.md)
