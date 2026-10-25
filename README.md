@@ -65,7 +65,7 @@ Task {
 
 Every network call is `async throws` over native `URLSession`; there is no third-party networking dependency. URL builders and callback parsing are synchronous.
 
-Apps that need a custom transport for tests, fixtures, or specialized session configuration can pass their own `URLSession`:
+Pass your own `URLSession` for tests, fixtures, or custom session configuration:
 
 ```swift
 let configuration = URLSessionConfiguration.ephemeral
@@ -79,7 +79,7 @@ let sdk = PutioSDK(
 
 ## Error Handling
 
-Thrown SDK errors are `PutioSDKError` values that conform to `LocalizedError` and expose small classification helpers for app code:
+SDK errors are `PutioSDKError` values. They conform to `LocalizedError` and expose classification helpers:
 
 ```swift
 do {
@@ -97,9 +97,9 @@ do {
 
 ## Video Playback
 
-Media URLs carry the account's download token, never the OAuth token. The download token only
-authorizes file media endpoints such as streams, HLS, downloads, and subtitles, so it is the
-credential to hand to players, cast receivers, and external apps. Fetch it once from account info:
+Media URLs carry the account's download token, never the OAuth token. The download token
+authorizes only media endpoints (streams, HLS, downloads, subtitles), so hand it to players,
+cast receivers, and ecosystem apps. Fetch it once from account info:
 
 ```swift
 let account = try await sdk.getAccountInfo(query: PutioAccountInfoQuery(downloadToken: true))
@@ -135,8 +135,7 @@ Passing a non-audio file throws `PutioAudioPlaybackResolutionError.unsupportedFi
 `getHlsStreamURL(downloadToken:)`, `getAudioStreamURL(downloadToken:)`,
 `getDownloadURL(downloadToken:)`, and `getMp4DownloadURL(downloadToken:)`.
 
-Media URLs are still bearer credentials for the account's files. Use them for playback and
-downloads; do not log or persist them.
+Media URLs are still bearer credentials for the account's files: never log or persist them.
 
 ## App Config
 
@@ -166,20 +165,18 @@ _ = try await sdk.setConfigValue(key: "autoplay_next_video", true)
 
 ## Authentication Example
 
-The example app shows a minimal `ASWebAuthenticationSession` flow with your own client ID and redirect URI, followed by an account fetch:
-
-- [Example/PutioSDK/ViewController.swift](./Example/PutioSDK/ViewController.swift)
-- [Example app guide](./Example/README.md)
+The [example app](./Example/README.md) runs a minimal `ASWebAuthenticationSession` flow with your own client ID and redirect URI, then fetches the account ([ViewController.swift](./Example/PutioSDK/ViewController.swift)).
 
 Generate a state with `try PutioSDK.generateOAuthState()`, pass it to `getAuthURL(redirectURI:state:)`, then extract the token with `accessToken(fromOAuthCallback:expectedScheme:expectedHost:expectedState:)`, which rejects callbacks whose state does not match.
 
 ## Docs
 
-- [Contributing](./CONTRIBUTING.md) for setup, `make verify`, live API checks, and releases
-- [Architecture](./docs/architecture.md) for the transport, concurrency posture, and covered API surface
-- [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md) for private vulnerability reports; fixes target the latest published release and `main`
+- [Contributing](./CONTRIBUTING.md): setup, checks, live tests, and releases
+- [Architecture](./docs/architecture.md): design rules and concurrency posture
+- [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md):
+  private vulnerability reports
 - [Agent guide](./AGENTS.md)
 
 ## License
 
-This project is available under the [MIT License](./LICENSE)
+[MIT](./LICENSE)
