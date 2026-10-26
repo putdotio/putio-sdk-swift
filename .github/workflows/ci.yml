@@ -126,11 +126,11 @@ jobs:
         run: make verify-platforms
 
       - name: Check Markdown links
-        uses: putdotio/.github/.github/actions/links@32b9f2f9ac2b6b17b2be6b111ec495e079384b4c # v2.3.1
+        uses: putdotio/.github/.github/actions/links@0299a68cb84725497b4349c6131aeec45c9611a5 # v2.3.2
 
       - name: Scan secrets and workflows
         if: ${{ !cancelled() }}
-        uses: putdotio/.github/.github/actions/scan@32b9f2f9ac2b6b17b2be6b111ec495e079384b4c # v2.3.1
+        uses: putdotio/.github/.github/actions/scan@0299a68cb84725497b4349c6131aeec45c9611a5 # v2.3.2
 
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
