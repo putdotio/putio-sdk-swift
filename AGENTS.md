@@ -15,6 +15,12 @@ Public Swift SDK for the put.io API; its first-party consumer is
   type that is not thread-safe. Making the `open` class models or
   `PutioClearDataOptionKeys` `Sendable` breaks the API and needs a major release.
 
+## Skills
+
+- Async/await, actors, isolation, or `Sendable`: `swift-concurrency`.
+- Writing or restructuring tests: `swift-testing-expert`. It does not authorize
+  an XCTest migration.
+
 ## Formatting
 
 `make verify` starts with `swift format lint --strict` on stock rules; fix findings
