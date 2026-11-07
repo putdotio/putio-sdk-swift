@@ -6,7 +6,7 @@
   <h1>putio-sdk-swift</h1>
 
   <p>
-    Swift SDK for the <a href="https://api.put.io/v2/docs">put.io API</a>
+    Swift SDK for the <a href="https://devs.put.io/api">put.io API</a>
   </p>
 
   <p>
