@@ -67,6 +67,11 @@ final class PutioSDKStrictConcurrencyTests: XCTestCase {
     requireSendable(PutioTransfersAddManyResponse.self)
     requireSendable(PutioTransfersCleanResponse.self)
     requireSendable(PutioTrashListQuery.self)
+    requireSendable(PutioPublicShareToken.self)
+    requireSendable(PutioPublicShareOwner.self)
+    requireSendable(PutioPublicShareFile.self)
+    requireSendable(PutioPublicShare.self)
+    requireSendable(PutioPublicShareRefusal.self)
   }
 
   // Anchors `auditAsyncConsumerSurface` so dead-code cleanup can't silently drop the
@@ -115,6 +120,9 @@ private func auditAsyncConsumerSurface(_ sdk: PutioSDK) async throws {
   _ = try await sdk.getMp4ConversionStatus(fileID: 1)
   _ = try await sdk.getGrants()
   _ = try await sdk.getHistoryEvents()
+  _ = try await sdk.listPublicShares()
+  _ = try await sdk.createPublicShare(fileID: 1)
+  _ = try await sdk.deletePublicShare(id: 1)
   let ingredients = PutioIFTTTPlaybackEventIngredients(
     fileId: 1,
     fileName: "Movie",
