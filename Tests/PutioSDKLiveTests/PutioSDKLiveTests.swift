@@ -21,6 +21,17 @@ final class PutioSDKLiveTests: XCTestCase {
     XCTAssertNotNil(validation.userID)
   }
 
+  func testPublicSharesListAgainstRealAPI() async throws {
+    let sdk = try LiveSupport.newAuthedClient()
+    let shares = try await sdk.listPublicShares()
+
+    for share in shares {
+      XCTAssertGreaterThan(share.id, 0)
+      XCTAssertFalse(share.token.value.isEmpty)
+      XCTAssertGreaterThan(share.userFile.id, 0)
+    }
+  }
+
   func testFilesAndTrashDisposableFlow() async throws {
     let sdk = try LiveSupport.newAuthedClient()
     let trashEnabled = try await sdk.getAccountSettings().trashEnabled
