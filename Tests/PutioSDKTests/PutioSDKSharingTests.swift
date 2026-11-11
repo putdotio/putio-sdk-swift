@@ -72,6 +72,7 @@ final class PutioSDKSharingTests: XCTestCase {
       ("SharedFileCloneTooManyChildren", .tooManyChildren),
     ]
 
+    let delegate = CloneDelegate()
     for (errorType, limit) in cases {
       try installMockRequestHandler { request in
         let payload = """
@@ -80,8 +81,10 @@ final class PutioSDKSharingTests: XCTestCase {
         return (makeHTTPResponse(for: request, statusCode: 400), Data(payload.utf8))
       }
 
+      let sdk = makeSDK()
+      sdk.delegate = delegate
       do {
-        _ = try await makeSDK().cloneSharedFiles(fileIDs: [11], parentID: 7)
+        _ = try await sdk.cloneSharedFiles(fileIDs: [11], parentID: 7)
         XCTFail("Expected \(errorType) to throw")
       } catch let error as PutioSDKError {
         XCTAssertEqual(error.sharedFileCloneLimit, limit, errorType)
@@ -89,6 +92,7 @@ final class PutioSDKSharingTests: XCTestCase {
         XCTAssertFalse(error.isRetryable)
       }
     }
+    XCTAssertEqual(delegate.count, 0)
   }
 
   func testOtherFailuresCarryNoCloneLimit() async throws {
@@ -99,13 +103,17 @@ final class PutioSDKSharingTests: XCTestCase {
       return (makeHTTPResponse(for: request, statusCode: 400), Data(payload.utf8))
     }
 
+    let delegate = CloneDelegate()
+    let sdk = makeSDK()
+    sdk.delegate = delegate
     do {
-      _ = try await makeSDK().cloneSharedFiles(fileIDs: [11])
+      _ = try await sdk.cloneSharedFiles(fileIDs: [11])
       XCTFail("Expected a bad request")
     } catch let error as PutioSDKError {
       XCTAssertEqual(error.apiErrorType, "BadRequest")
       XCTAssertNil(error.sharedFileCloneLimit)
     }
+    XCTAssertEqual(delegate.count, 1)
   }
 
   func testGetCloneInfoDecodesEveryStatus() async throws {
@@ -115,11 +123,16 @@ final class PutioSDKSharingTests: XCTestCase {
       #"{"shared_file_clone_status":"DONE","status":"OK"}"#,
       #"{"shared_file_clone_status":"ERROR","error_msg":"File(s) size exceed disk limit.","status":"OK"}"#,
       #"{"shared_file_clone_status":"PAUSED","status":"OK"}"#,
+      #"{"shared_file_clone_status":null,"status":"OK"}"#,
     ]
     var index = 0
     try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/sharing/clone/321")
       XCTAssertEqual(request.httpMethod, "GET")
+      guard index < responses.count else {
+        XCTFail("Unexpected extra request")
+        return (makeHTTPResponse(for: request, statusCode: 500), Data())
+      }
       defer { index += 1 }
       return (makeHTTPResponse(for: request, statusCode: 200), Data(responses[index].utf8))
     }
@@ -137,9 +150,11 @@ final class PutioSDKSharingTests: XCTestCase {
         PutioSharedFileCloneInfo(status: .processing),
         PutioSharedFileCloneInfo(status: .done),
         PutioSharedFileCloneInfo(status: .error, errorMessage: "File(s) size exceed disk limit."),
-        PutioSharedFileCloneInfo(status: .unknown("PAUSED")),
+        PutioSharedFileCloneInfo(status: PutioSharedFileCloneStatus(rawValue: "PAUSED")),
+        PutioSharedFileCloneInfo(status: PutioSharedFileCloneStatus(rawValue: "")),
       ])
-    XCTAssertEqual(infos.map(\.status.isFinished), [false, false, true, true, false])
+    XCTAssertEqual(infos.map(\.status.isFinished), [false, false, true, true, false, false])
+    XCTAssertEqual(infos.map(\.status.isKnown), [true, true, true, true, false, false])
   }
 
   func testGetCloneInfoRedactsSensitiveValuesInTheErrorMessage() async throws {
@@ -170,5 +185,22 @@ final class PutioSDKSharingTests: XCTestCase {
       XCTAssertEqual(error.apiErrorType, "SHARED_FILE_CLONE_NOT_FOUND")
       XCTAssertNil(error.sharedFileCloneLimit)
     }
+  }
+}
+
+private final class CloneDelegate: PutioSDKDelegate, @unchecked Sendable {
+  private let lock = NSLock()
+  private var recorded = 0
+
+  var count: Int {
+    lock.lock()
+    defer { lock.unlock() }
+    return recorded
+  }
+
+  func onPutioSDKError(error: PutioSDKError) {
+    lock.lock()
+    recorded += 1
+    lock.unlock()
   }
 }

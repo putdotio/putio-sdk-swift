@@ -1,30 +1,28 @@
 import Foundation
 
-public enum PutioSharedFileCloneStatus: Equatable, Sendable {
-  case new
-  case processing
-  case done
-  case error
-  case unknown(String)
+public struct PutioSharedFileCloneStatus: RawRepresentable, Equatable, Sendable {
+  public let rawValue: String
 
-  init(rawValue: String) {
-    switch rawValue {
-    case "NEW": self = .new
-    case "PROCESSING": self = .processing
-    case "DONE": self = .done
-    case "ERROR": self = .error
-    default: self = .unknown(rawValue)
-    }
+  public init(rawValue: String) {
+    self.rawValue = rawValue
+  }
+
+  public static let new = PutioSharedFileCloneStatus(rawValue: "NEW")
+  public static let processing = PutioSharedFileCloneStatus(rawValue: "PROCESSING")
+  public static let done = PutioSharedFileCloneStatus(rawValue: "DONE")
+  public static let error = PutioSharedFileCloneStatus(rawValue: "ERROR")
+
+  private static let knownValues: Set<String> = [
+    new.rawValue, processing.rawValue, done.rawValue, error.rawValue,
+  ]
+
+  public var isKnown: Bool {
+    Self.knownValues.contains(rawValue)
   }
 
   /// put.io stops working on the copy in these states; any other status may still change.
   public var isFinished: Bool {
-    switch self {
-    case .done, .error:
-      return true
-    case .new, .processing, .unknown:
-      return false
-    }
+    self == .done || self == .error
   }
 }
 
@@ -44,10 +42,12 @@ public struct PutioSharedFileCloneInfo: Decodable, Equatable, Sendable {
     case errorMessage = "error_msg"
   }
 
+  // `decode(String?.self)`: put.io sends `null` for a status it cannot name, which stays an
+  // unknown status; a missing key is a malformed response.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     status = PutioSharedFileCloneStatus(
-      rawValue: try container.decode(String.self, forKey: .status))
+      rawValue: try container.decode(String?.self, forKey: .status) ?? "")
     errorMessage = try container.decodeIfPresent(String.self, forKey: .errorMessage)
       .map(redactSensitiveText)
   }
@@ -66,7 +66,6 @@ public enum PutioSharedFileCloneLimit: String, CaseIterable, Sendable {
 extension PutioSDKError {
   /// The limit put.io reported when it refused `cloneSharedFiles(fileIDs:parentID:)`.
   public var sharedFileCloneLimit: PutioSharedFileCloneLimit? {
-    guard statusCode == 400 else { return nil }
-    return apiErrorType.flatMap(PutioSharedFileCloneLimit.init(rawValue:))
+    apiErrorType.flatMap(PutioSharedFileCloneLimit.init(rawValue:))
   }
 }
