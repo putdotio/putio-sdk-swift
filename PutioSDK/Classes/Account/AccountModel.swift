@@ -210,6 +210,7 @@ public struct PutioAccountSettingsPatch: Sendable {
   public let sortBy: String?
   public let diagnosticsEnabled: Bool?
   public let productAnalyticsEnabled: Bool?
+  /// Sent as `start_from`; `false` clears every saved playback position on the account.
   public let rememberVideoTime: Bool?
   public let suggestNextVideo: Bool?
 
