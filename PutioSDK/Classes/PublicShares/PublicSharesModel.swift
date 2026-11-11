@@ -43,7 +43,7 @@ public struct PutioPublicShareFile: Equatable, Sendable {
   }
 }
 
-public struct PutioPublicShare: Decodable, Equatable, Sendable {
+public struct PutioPublicShare: Decodable, Equatable, Identifiable, Sendable {
   public let id: Int
   public let token: PutioPublicShareToken
   public let pushToken: PutioPublicShareToken
