@@ -267,4 +267,56 @@ final class PutioSDKAccountTests: XCTestCase {
     XCTAssertEqual(clearOptions.parameters["trash"], .bool(true))
     XCTAssertEqual(clearOptions.parameters["friends"], .bool(true))
   }
+
+  func testSettingsPatchSendsResumeAndNextVideoOnlyWhenSet() async throws {
+    let bodies = BodyRecorder()
+    try installMockRequestHandler { request in
+      XCTAssertEqual(request.url?.path, "/v2/account/settings")
+      XCTAssertEqual(request.httpMethod, "POST")
+      let body = try XCTUnwrap(requestBodyData(for: request))
+      bodies.append(try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Bool]))
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"status":"OK"}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    let patches = [
+      PutioAccountSettingsPatch(rememberVideoTime: false),
+      PutioAccountSettingsPatch(rememberVideoTime: true),
+      PutioAccountSettingsPatch(suggestNextVideo: false),
+      PutioAccountSettingsPatch(suggestNextVideo: true),
+      PutioAccountSettingsPatch(rememberVideoTime: true, suggestNextVideo: false),
+      PutioAccountSettingsPatch(historyEnabled: true),
+    ]
+    for patch in patches {
+      _ = try await sdk.saveAccountSettings(.patch(patch))
+    }
+
+    XCTAssertEqual(
+      bodies.values,
+      [
+        ["start_from": false],
+        ["start_from": true],
+        ["next_episode": false],
+        ["next_episode": true],
+        ["start_from": true, "next_episode": false],
+        ["history_enabled": true],
+      ])
+  }
+}
+
+private final class BodyRecorder: @unchecked Sendable {
+  private let lock = NSLock()
+  private var recorded: [[String: Bool]] = []
+
+  var values: [[String: Bool]] {
+    lock.withLock { recorded }
+  }
+
+  func append(_ body: [String: Bool]) {
+    lock.withLock { recorded.append(body) }
+  }
 }

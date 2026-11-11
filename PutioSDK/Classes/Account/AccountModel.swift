@@ -210,6 +210,8 @@ public struct PutioAccountSettingsPatch: Sendable {
   public let sortBy: String?
   public let diagnosticsEnabled: Bool?
   public let productAnalyticsEnabled: Bool?
+  public let rememberVideoTime: Bool?
+  public let suggestNextVideo: Bool?
 
   public init(
     historyEnabled: Bool? = nil,
@@ -220,7 +222,9 @@ public struct PutioAccountSettingsPatch: Sendable {
     showOptimisticUsage: Bool? = nil,
     sortBy: String? = nil,
     diagnosticsEnabled: Bool? = nil,
-    productAnalyticsEnabled: Bool? = nil
+    productAnalyticsEnabled: Bool? = nil,
+    rememberVideoTime: Bool? = nil,
+    suggestNextVideo: Bool? = nil
   ) {
     self.historyEnabled = historyEnabled
     self.trashEnabled = trashEnabled
@@ -231,6 +235,8 @@ public struct PutioAccountSettingsPatch: Sendable {
     self.sortBy = sortBy
     self.diagnosticsEnabled = diagnosticsEnabled
     self.productAnalyticsEnabled = productAnalyticsEnabled
+    self.rememberVideoTime = rememberVideoTime
+    self.suggestNextVideo = suggestNextVideo
   }
 
   var parameters: PutioRequestParameters {
@@ -248,6 +254,8 @@ public struct PutioAccountSettingsPatch: Sendable {
     if let productAnalyticsEnabled {
       body["product_analytics_enabled"] = .bool(productAnalyticsEnabled)
     }
+    if let rememberVideoTime { body["start_from"] = .bool(rememberVideoTime) }
+    if let suggestNextVideo { body["next_episode"] = .bool(suggestNextVideo) }
     return body
   }
 }
