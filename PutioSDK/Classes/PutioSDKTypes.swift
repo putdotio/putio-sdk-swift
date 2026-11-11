@@ -357,7 +357,7 @@ func sensitiveKey(_ key: String) -> Bool {
     || normalized.hasSuffix("_secret") || normalized.contains("_secret_")
 }
 
-private func redactSensitiveText(_ text: String) -> String {
+func redactSensitiveText(_ text: String) -> String {
   let replacements = [
     (
       #"(?i)([?&](?:[^=\s&#"']*token|[^=\s&#"']*secret|password|current_password|recovery_codes)=)[^\s&#"']+"#,
