@@ -316,17 +316,23 @@ public struct PutioFileDetailsQuery: Sendable {
 public struct PutioFileDeleteOptions: Sendable {
   public let skipNonexistents: Bool
   public let skipOwnerCheck: Bool
+  public let skipTrash: Bool?
 
-  public init(skipNonexistents: Bool = true, skipOwnerCheck: Bool = false) {
+  public init(skipNonexistents: Bool = true, skipOwnerCheck: Bool = false, skipTrash: Bool? = nil) {
     self.skipNonexistents = skipNonexistents
     self.skipOwnerCheck = skipOwnerCheck
+    self.skipTrash = skipTrash
   }
 
   var parameters: PutioRequestParameters {
-    [
+    var parameters: PutioRequestParameters = [
       "skip_nonexistents": .bool(skipNonexistents),
       "skip_owner_check": .bool(skipOwnerCheck),
     ]
+    if let skipTrash {
+      parameters["skip_trash"] = .bool(skipTrash)
+    }
+    return parameters
   }
 }
 
