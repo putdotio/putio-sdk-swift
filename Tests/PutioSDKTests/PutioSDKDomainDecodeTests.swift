@@ -73,6 +73,79 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
     XCTAssertEqual(grants.first?.hasIcon, true)
   }
 
+  func testGetClientsDecodesSessionsWithDefaults() async throws {
+    try installMockRequestHandler { request in
+      XCTAssertEqual(request.url?.path, "/v2/oauth/clients")
+      let payload = """
+        {
+          "status": "OK",
+          "clients": [
+            {
+              "id": 11,
+              "app_id": 5,
+              "app_name": "Calendar Sync",
+              "client_name": "iPhone",
+              "created_at": "2026-10-01T09:00:00",
+              "last_used_at": "2026-11-09T18:30:00",
+              "active": true
+            },
+            { "id": 12, "app_id": 6 }
+          ]
+        }
+        """
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
+    }
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    let clients = try await sdk.getClients()
+
+    XCTAssertEqual(
+      clients,
+      [
+        PutioOAuthClient(
+          id: 11, appID: 5, appName: "Calendar Sync", clientName: "iPhone",
+          createdAt: "2026-10-01T09:00:00", lastUsedAt: "2026-11-09T18:30:00", isActive: true),
+        PutioOAuthClient(id: 12, appID: 6),
+      ])
+  }
+
+  func testGetAppIconReturnsTheImageBytesWithTheToken() async throws {
+    let png = Data([0x89, 0x50, 0x4E, 0x47])
+    try installMockRequestHandler { request in
+      XCTAssertEqual(request.url?.path, "/v2/oauth/apps/5/icon")
+      XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token token-123")
+      return (makeHTTPResponse(for: request, statusCode: 200), png)
+    }
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    let icon = try await sdk.getAppIcon(appID: 5)
+
+    XCTAssertEqual(icon, png)
+  }
+
+  func testGetAppIconThrowsOnAMissingIcon() async throws {
+    try installMockRequestHandler { request in
+      (makeHTTPResponse(for: request, statusCode: 404), Data())
+    }
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    do {
+      _ = try await sdk.getAppIcon(appID: 5)
+      XCTFail("a missing icon returned bytes")
+    } catch let error as PutioSDKError {
+      XCTAssertEqual(error.statusCode, 404)
+    }
+  }
+
   func testGetSubtitlesPreservesOauthTokenQueryAndDecodesResponse() async throws {
     try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/subtitles")
