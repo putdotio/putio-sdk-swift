@@ -74,6 +74,14 @@ public final class PutioSDK {
       decode: { data in try JSONDecoder().decode(type, from: data) })
   }
 
+  func requestData(_ url: String) async throws -> sending Data {
+    let requestConfig = PutioSDKRequestConfig(apiConfig: config, url: url, method: .get)
+    return try await perform(
+      requestConfig: requestConfig,
+      delegateReference: PutioSDKDelegateReference(delegate),
+      decode: { data in data })
+  }
+
   // Runs off the caller's actor:
   // `NonisolatedNonsendingByDefault` would otherwise inherit the caller's isolation for
   // this async body, forcing JSON encode/decode and delegate callbacks onto a `@MainActor`
