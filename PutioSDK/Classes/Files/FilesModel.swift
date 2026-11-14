@@ -208,9 +208,7 @@ open class PutioFile: PutioBaseFile {
 
   /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
   public func getAudioStreamURL(downloadToken: String) -> URL {
-    putioFileURL(
-      fileID: id, pathSuffix: "stream",
-      queryItems: [URLQueryItem(name: "oauth_token", value: downloadToken)])
+    getFileStreamURL(downloadToken: downloadToken)
   }
 
   /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.

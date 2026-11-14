@@ -51,7 +51,7 @@ extension PutioSDK {
     }
 
     return PutioAudioPlaybackSource(
-      url: try makeAudioStreamURL(
+      url: try makeFileStreamURL(
         fileID: file.id, downloadToken: downloadToken, config: operationConfig),
       startFrom: file.startFrom
     )
@@ -87,9 +87,8 @@ extension PutioSDK {
         url = try makeVideoHLSURL(
           fileID: file.id, downloadToken: downloadToken, config: operationConfig)
       case .original:
-        url = try makePlaybackURL(
-          path: "/files/\(file.id)/stream", query: [:], downloadToken: downloadToken,
-          config: operationConfig)
+        url = try makeFileStreamURL(
+          fileID: file.id, downloadToken: downloadToken, config: operationConfig)
       case .mp4:
         url = try makePlaybackURL(
           path: "/files/\(file.id)/mp4/stream", query: [:], downloadToken: downloadToken,
@@ -168,7 +167,7 @@ extension PutioSDK {
     )
   }
 
-  private func makeAudioStreamURL(fileID: Int, downloadToken: String, config: PutioSDKConfig)
+  private func makeFileStreamURL(fileID: Int, downloadToken: String, config: PutioSDKConfig)
     throws -> URL
   {
     try makePlaybackURL(
