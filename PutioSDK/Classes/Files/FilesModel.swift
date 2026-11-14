@@ -240,6 +240,7 @@ public struct PutioFilesListQuery: Sendable {
   public let fileType: PutioFileType?
   public let sortBy: String?
   public let mp4Status: Bool
+  public let videoMetadata: Bool
 
   public init(
     perPage: Int? = nil,
@@ -249,7 +250,8 @@ public struct PutioFilesListQuery: Sendable {
     contentType: String? = nil,
     fileType: PutioFileType? = nil,
     sortBy: String? = nil,
-    mp4Status: Bool = false
+    mp4Status: Bool = false,
+    videoMetadata: Bool = false
   ) {
     self.perPage = perPage
     self.total = total
@@ -259,6 +261,7 @@ public struct PutioFilesListQuery: Sendable {
     self.fileType = fileType
     self.sortBy = sortBy
     self.mp4Status = mp4Status
+    self.videoMetadata = videoMetadata
   }
 
   func parameters(parentID: Int) -> PutioRequestParameters {
@@ -277,6 +280,7 @@ public struct PutioFilesListQuery: Sendable {
     if let fileType { query["file_type"] = .string(fileType.rawValue) }
     if let sortBy { query["sort_by"] = .string(sortBy) }
     if mp4Status { query["mp4_status"] = 1 }
+    if videoMetadata { query["video_metadata"] = 1 }
     return query
   }
 }
