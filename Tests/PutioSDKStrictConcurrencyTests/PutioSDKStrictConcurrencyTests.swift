@@ -27,6 +27,18 @@ final class PutioSDKStrictConcurrencyTests: XCTestCase {
     requireSendable(PutioVideoPlaybackResolutionError.self)
     requireSendable(PutioAudioPlaybackSource.self)
     requireSendable(PutioAudioPlaybackResolutionError.self)
+    requireSendable(PutioStreamingMethod.self)
+    requireSendable(PutioPlaybackReason.self)
+    requireSendable(PutioOriginalVideoSupport.self)
+    requireSendable(PutioPlaybackStreamKind.self)
+    requireSendable(PutioPlaybackStream.self)
+    requireSendable(PutioPlaybackPlan.self)
+    requireSendable(PutioPlaybackPlanError.self)
+    requireSendable(PutioMediaInfo.self)
+    requireSendable(PutioMediaFormat.self)
+    requireSendable(PutioMediaStream.self)
+    requireSendable(PutioMediaStreamType.self)
+    requireSendable(PutioPlaybackIssue.self)
     requireSendable(PutioMp4ConversionStatus.self)
     requireSendable(PutioAccountStatus.self)
     requireSendable(PutioAccountInfoQuery.self)
@@ -117,6 +129,9 @@ private func auditAsyncConsumerSurface(_ sdk: PutioSDK) async throws {
   _ = try await sdk.findNextFile(fileID: 1, fileType: .video)
   _ = try await sdk.findNextFileIfAvailable(fileID: 1, fileType: .video)
   _ = try await sdk.resolveVideoPlaybackSource(fileID: 1, downloadToken: "download-token")
+  _ = try await sdk.resolvePlayback(
+    fileID: 1, downloadToken: "download-token", method: .directPlay
+  ) { _ in .playable }
   _ = try await sdk.resolveAudioPlaybackSource(fileID: 1, downloadToken: "download-token")
   _ = try await sdk.getMp4ConversionStatus(fileID: 1)
   _ = try await sdk.getGrants()

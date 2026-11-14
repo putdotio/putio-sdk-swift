@@ -119,6 +119,8 @@ open class PutioFile: PutioBaseFile {
 
   open var streamURL: String = ""
 
+  open var mediaInfo: PutioMediaInfo?
+
   enum CodingKeys: String, CodingKey {
     case isShared = "is_shared"
     case updatedAt = "updated_at"
@@ -132,6 +134,7 @@ open class PutioFile: PutioBaseFile {
     case mp4Size = "mp4_size"
     case mp4StreamURL = "mp4_stream_url"
     case streamURL = "stream_url"
+    case mediaInfo = "media_info"
   }
 
   public required init(from decoder: Decoder) throws {
@@ -156,6 +159,7 @@ open class PutioFile: PutioBaseFile {
     self.mp4Size = try container.decodeIfPresent(Int64.self, forKey: .mp4Size) ?? 0
     self.mp4StreamURL = try container.decodeIfPresent(String.self, forKey: .mp4StreamURL) ?? ""
     self.streamURL = try container.decodeIfPresent(String.self, forKey: .streamURL) ?? ""
+    self.mediaInfo = try container.decodeIfPresent(PutioMediaInfo.self, forKey: .mediaInfo)
 
     try super.init(from: decoder)
   }
@@ -194,11 +198,17 @@ open class PutioFile: PutioBaseFile {
     )
   }
 
-  /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
-  public func getAudioStreamURL(downloadToken: String) -> URL {
+  /// The original file as put.io stores it. Pass `PutioAccount.downloadToken`, never the OAuth
+  /// token; the URL is a bearer credential.
+  public func getFileStreamURL(downloadToken: String) -> URL {
     putioFileURL(
       fileID: id, pathSuffix: "stream",
       queryItems: [URLQueryItem(name: "oauth_token", value: downloadToken)])
+  }
+
+  /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
+  public func getAudioStreamURL(downloadToken: String) -> URL {
+    getFileStreamURL(downloadToken: downloadToken)
   }
 
   /// Pass `PutioAccount.downloadToken`, never the OAuth token; the URL is a bearer credential.
@@ -290,17 +300,20 @@ public struct PutioFileDetailsQuery: Sendable {
   public let startFrom: Bool
   public let streamURL: Bool
   public let mp4StreamURL: Bool
+  public let mediaInfo: Bool
 
   public init(
     mp4Size: Bool = true,
     startFrom: Bool = true,
     streamURL: Bool = true,
-    mp4StreamURL: Bool = true
+    mp4StreamURL: Bool = true,
+    mediaInfo: Bool = false
   ) {
     self.mp4Size = mp4Size
     self.startFrom = startFrom
     self.streamURL = streamURL
     self.mp4StreamURL = mp4StreamURL
+    self.mediaInfo = mediaInfo
   }
 
   var parameters: PutioRequestParameters {
@@ -309,6 +322,7 @@ public struct PutioFileDetailsQuery: Sendable {
     if startFrom { query["start_from"] = 1 }
     if streamURL { query["stream_url"] = 1 }
     if mp4StreamURL { query["mp4_stream_url"] = 1 }
+    if mediaInfo { query["media_info"] = 1 }
     return query
   }
 }

@@ -140,7 +140,32 @@ play(url: source.url, startingAt: source.startFrom)
 
 Passing a non-audio file throws `PutioAudioPlaybackResolutionError.unsupportedFileType`.
 
-`PutioFile` and `PutioNextFile` also build these URLs directly from a download token.
+`resolvePlayback` plans a play under a Playback method, the way every put.io client picks what
+plays. Standard plays HLS. Direct play asks for `media_info` and calls your device check only for a
+probed original with no playback issue; otherwise it falls back to the converted MP4, then to
+conversion, then to `unplayable`, each with its reason code:
+
+```swift
+let plan = try await sdk.resolvePlayback(
+    fileID: 42, downloadToken: downloadToken, method: .directPlay
+) { mediaInfo in
+    deviceDecodes(mediaInfo) ? .playable : .unsupported(.videoUnsupported)
+}
+switch plan {
+case .ready(let stream):
+    play(url: stream.url, startingAt: stream.startFrom, fallbackReason: stream.fallbackReason)
+case .conversionRequired(let reason):
+    showConversionRequired(reason)
+case .unplayable(let reason):
+    showCantPlay(reason)
+}
+```
+
+When the original fails before its first frame, resolve again with a device check that returns
+`.unsupported(.decoderError)`. The SDK never asks HLS for an original.
+
+`PutioFile` and `PutioNextFile` also build these URLs directly from a download token;
+`PutioFile.getFileStreamURL` returns the original file's stream.
 
 Media URLs are still bearer credentials for the account's files: never log or persist them.
 
