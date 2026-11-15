@@ -1,0 +1,13 @@
+{
+  "devices": {
+    "com.apple.CoreSimulator.SimRuntime.iOS-26-5": [
+      { "udid": "72F26038-90B1-4B28-95DA-276286749AAF", "name": "iPhone 17", "isAvailable": true, "state": "Shutdown" }
+    ],
+    "com.apple.CoreSimulator.SimRuntime.tvOS-26-5": [
+      { "udid": "0E4E6DAD-33E6-46CA-ABAD-DFC1FEE3F9B0", "name": "Apple TV 4K (3rd generation) (at 1080p)", "isAvailable": true, "state": "Shutdown" }
+    ],
+    "com.apple.CoreSimulator.SimRuntime.watchOS-26-5": [
+      { "udid": "5D4C3B2A-1F0E-4D9C-8B7A-6F5E4D3C2B1A", "name": "Apple Watch Series 11 (42mm)", "isAvailable": false, "state": "Shutdown" }
+    ]
+  }
+}
