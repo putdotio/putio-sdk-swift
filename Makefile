@@ -38,8 +38,8 @@ verify-spm:
 # tvOS and watchOS unit-test runs (each builds the library for its platform first).
 verify-platforms:
 	@set -e; for platform in tvOS watchOS; do \
-		destination="$$(./scripts/platform-simulator-destination.sh $$platform)"; \
-		echo "Testing PutioSDK on $$platform simulator ($$destination)"; \
+		destination="$$(swift ./scripts/platform-simulator-destination.swift $$platform)"; \
+		echo "Testing PutioSDK on the newest $$platform simulator ($$destination)"; \
 		xcodebuild -scheme PutioSDK -only-testing:PutioSDKTests -destination "$$destination" test CODE_SIGNING_ALLOWED=NO; \
 	done
 
