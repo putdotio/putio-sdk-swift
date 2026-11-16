@@ -613,7 +613,7 @@ final class PutioSDKFilesTests: XCTestCase {
       XCTAssertEqual(request.url?.path, "/v2/files/42")
       return (
         makeHTTPResponse(for: request, statusCode: 200),
-        playbackFileEnvelope(fileID: 42, fileType: "VIDEO", needConvert: false, startFrom: 0)
+        playbackFileEnvelope(fileID: 42, fileType: "VIDEO", needConvert: nil, startFrom: 0)
       )
     }
 

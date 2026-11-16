@@ -42,7 +42,7 @@ extension PutioSDK {
       "/files/\(fileID)",
       query: ["start_from": 1],
       apiConfig: operationConfig,
-      as: PutioPlaybackFileEnvelope.self
+      as: PutioAudioPlaybackFileEnvelope.self
     )
     let file = envelope.file
 
@@ -277,17 +277,37 @@ private struct PutioPlaybackFile: Decodable {
     self.id = try container.decode(Int.self, forKey: .id)
     self.type = PutioFileType.fromAPI(try container.decode(String.self, forKey: .type))
 
-    switch type {
-    case .video:
+    if type == .video {
       self.needConvert = try container.decode(Bool.self, forKey: .needConvert)
       self.startFrom = try decodePlaybackStartFrom(forKey: .startFrom, in: container)
-    case .audio:
-      self.needConvert = false
-      self.startFrom = try decodePlaybackStartFrom(forKey: .startFrom, in: container)
-    default:
+    } else {
       self.needConvert = false
       self.startFrom = 0
     }
+  }
+}
+
+private struct PutioAudioPlaybackFileEnvelope: Decodable {
+  let file: PutioAudioPlaybackFile
+}
+
+private struct PutioAudioPlaybackFile: Decodable {
+  let id: Int
+  let type: PutioFileType
+  let startFrom: Int
+
+  private enum CodingKeys: String, CodingKey {
+    case id
+    case type = "file_type"
+    case startFrom = "start_from"
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.id = try container.decode(Int.self, forKey: .id)
+    self.type = PutioFileType.fromAPI(try container.decode(String.self, forKey: .type))
+    self.startFrom =
+      type == .audio ? try decodePlaybackStartFrom(forKey: .startFrom, in: container) : 0
   }
 }
 
