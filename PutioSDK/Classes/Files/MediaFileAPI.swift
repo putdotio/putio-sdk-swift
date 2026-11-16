@@ -277,14 +277,10 @@ private struct PutioPlaybackFile: Decodable {
     self.id = try container.decode(Int.self, forKey: .id)
     self.type = PutioFileType.fromAPI(try container.decode(String.self, forKey: .type))
 
-    switch type {
-    case .video:
+    if type == .video {
       self.needConvert = try container.decode(Bool.self, forKey: .needConvert)
       self.startFrom = try decodePlaybackStartFrom(forKey: .startFrom, in: container)
-    case .audio:
-      self.needConvert = false
-      self.startFrom = try decodePlaybackStartFrom(forKey: .startFrom, in: container)
-    default:
+    } else {
       self.needConvert = false
       self.startFrom = 0
     }
