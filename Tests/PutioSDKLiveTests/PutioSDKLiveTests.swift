@@ -226,6 +226,26 @@ final class PutioSDKLiveTests: XCTestCase {
     throw XCTSkip("No owned audio candidate found for playback resolution")
   }
 
+  func testAudioPlaybackSourceRejectsVideoAgainstRealAPI() async throws {
+    let sdk = try LiveSupport.newAuthedClient()
+    let search = try await sdk.searchFiles(
+      query: PutioFileSearchQuery(keyword: "mp4", perPage: 10)
+    )
+    let candidate = try XCTUnwrap(
+      search.files.first { $0.type == .video && !$0.isShared },
+      "No owned video candidate found for audio playback rejection"
+    )
+    let downloadToken = try await LiveSupport.downloadToken(sdk: sdk)
+
+    do {
+      _ = try await sdk.resolveAudioPlaybackSource(
+        fileID: candidate.id, downloadToken: downloadToken)
+      XCTFail("Expected a video file to be rejected")
+    } catch let error as PutioAudioPlaybackResolutionError {
+      XCTAssertEqual(error, .unsupportedFileType(.video))
+    }
+  }
+
   private func assertHLSPlaylistLoads(from url: URL) async throws {
     var request = URLRequest(url: url)
     request.setValue("bytes=0-4095", forHTTPHeaderField: "Range")
