@@ -292,6 +292,40 @@ final class PutioSDKPlaybackPlanTests: XCTestCase {
       fileStream?.queryItems, [URLQueryItem(name: "oauth_token", value: "download-token")])
   }
 
+  func testFileDetailsAskConversionStatusWithoutSigningAnMP4StreamURL() async throws {
+    let recorder = RequestRecorder()
+    try installMockRequestHandler { request in
+      recorder.append(request)
+      let payload = """
+        {
+          "file": {
+            "id": 61,
+            "name": "Clip.mkv",
+            "parent_id": 0,
+            "size": 100,
+            "created_at": "2026-04-20T10:00:00Z",
+            "updated_at": "2026-04-20T10:00:00Z",
+            "file_type": "VIDEO",
+            "is_mp4_available": false,
+            "mp4_size": null,
+            "need_convert": true
+          },
+          "status": "OK"
+        }
+        """
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
+    }
+
+    let file = try await makeSDK().getFile(
+      fileID: 61, query: PutioFileDetailsQuery(mp4StreamURL: false, mp4Status: true))
+
+    let query = queryItems(of: try XCTUnwrap(recorder.requests.first).url)
+    XCTAssertEqual(query["mp4_status"], "1")
+    XCTAssertNil(query["mp4_stream_url"])
+    XCTAssertTrue(file.needConvert)
+    XCTAssertNil(PutioFileDetailsQuery().parameters["mp4_status"])
+  }
+
   func testPlanDescriptionsRedactTheDownloadToken() throws {
     let stream = PutioPlaybackStream(
       kind: .mp4,
