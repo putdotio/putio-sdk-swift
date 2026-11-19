@@ -256,6 +256,39 @@ final class PutioSDKPlaybackPlanTests: XCTestCase {
       sparse, PutioMediaInfo(mimeType: nil, format: nil, streams: [], playbackIssues: []))
   }
 
+  func testBackendMediaInfoDecodesHDRAndDefaultAudio() throws {
+    let media = try JSONDecoder().decode(
+      PutioMediaInfo.self, from: Data(BackendMediaInfo.dolbyVisionMatroska.utf8))
+
+    XCTAssertEqual(media.streams.map(\.codecType), [.video, .audio, .audio])
+    XCTAssertEqual(media.streams.map(\.bitDepth), [10, nil, nil])
+    XCTAssertEqual(media.streams.map(\.isHDR), [true, nil, nil])
+    XCTAssertEqual(media.streams.map(\.dolbyVisionProfile), [5, nil, nil])
+    XCTAssertEqual(media.streams.map(\.isDefault), [nil, false, true])
+  }
+
+  func testBackendMediaInfoDecodesSDRAndNullDolbyVisionProfile() throws {
+    let media = try JSONDecoder().decode(
+      PutioMediaInfo.self, from: Data(BackendMediaInfo.sdrMatroska.utf8))
+
+    XCTAssertEqual(media.streams.map(\.codecType), [.video, .audio])
+    XCTAssertEqual(media.streams.map(\.bitDepth), [8, nil])
+    XCTAssertEqual(media.streams.map(\.isHDR), [false, nil])
+    XCTAssertEqual(media.streams.map(\.dolbyVisionProfile), [nil, nil])
+    XCTAssertEqual(media.streams.map(\.isDefault), [nil, true])
+  }
+
+  func testLegacyBackendMediaInfoDecodesMissingStreamFields() throws {
+    let media = try JSONDecoder().decode(
+      PutioMediaInfo.self, from: Data(BackendMediaInfo.legacyMatroska.utf8))
+
+    XCTAssertEqual(media.streams.map(\.codecType), [.video, .audio])
+    XCTAssertEqual(media.streams.map(\.bitDepth), [nil, nil])
+    XCTAssertEqual(media.streams.map(\.isHDR), [nil, nil])
+    XCTAssertEqual(media.streams.map(\.dolbyVisionProfile), [nil, nil])
+    XCTAssertEqual(media.streams.map(\.isDefault), [nil, nil])
+  }
+
   func testFileDetailsRequestAndDecodeMediaInfo() async throws {
     let recorder = RequestRecorder()
     try installMockRequestHandler { request in
@@ -509,6 +542,68 @@ private enum CapturedMediaInfo {
         },
         {"channels": 2, "codec_name": "vorbis", "codec_type": "audio", "rfc6381_codec": null}
       ]
+    }
+    """
+}
+
+private enum BackendMediaInfo {
+  static let dolbyVisionMatroska = """
+    {
+      "mime_type": "video/x-matroska",
+      "format": {"name": "matroska", "duration": 58.372, "bit_rate": 2276529},
+      "streams": [
+        {
+          "codec_type": "video", "codec_name": "hevc", "rfc6381_codec": null,
+          "width": 1280, "height": 720, "profile": "Main 10", "level": 153, "frame_rate": 23.976,
+          "bit_rate": null, "hdr": true, "dolby_vision_profile": 5, "bit_depth": 10
+        },
+        {
+          "codec_type": "audio", "codec_name": "ac3", "rfc6381_codec": null,
+          "channels": 6, "default": false, "language": null
+        },
+        {
+          "codec_type": "audio", "codec_name": "ac3", "rfc6381_codec": null,
+          "channels": 6, "default": true, "language": null
+        }
+      ],
+      "playback_issues": []
+    }
+    """
+
+  static let sdrMatroska = """
+    {
+      "mime_type": "video/x-matroska",
+      "format": {"name": "matroska", "duration": 58.372, "bit_rate": 2276529},
+      "streams": [
+        {
+          "codec_type": "video", "codec_name": "h264", "rfc6381_codec": null,
+          "width": 1280, "height": 720, "profile": "High", "level": 41, "frame_rate": 23.976,
+          "bit_rate": null, "hdr": false, "dolby_vision_profile": null, "bit_depth": 8
+        },
+        {
+          "codec_type": "audio", "codec_name": "ac3", "rfc6381_codec": null,
+          "channels": 6, "default": true, "language": null
+        }
+      ],
+      "playback_issues": []
+    }
+    """
+
+  static let legacyMatroska = """
+    {
+      "mime_type": "video/x-matroska",
+      "format": {"name": "matroska", "duration": 58.372, "bit_rate": 2276529},
+      "streams": [
+        {
+          "codec_type": "video", "codec_name": "h264", "rfc6381_codec": null,
+          "width": 1280, "height": 720, "profile": "High", "level": 41, "frame_rate": 23.976,
+          "bit_rate": null
+        },
+        {
+          "codec_type": "audio", "codec_name": "ac3", "rfc6381_codec": null, "channels": 6
+        }
+      ],
+      "playback_issues": []
     }
     """
 }

@@ -161,6 +161,10 @@ case .unplayable(let reason):
 }
 ```
 
+Video streams expose optional `bitDepth`, `isHDR`, and `dolbyVisionProfile`. For the default audio
+stream, use the first audio stream with `isDefault == true`, or the first audio stream if none is
+flagged. Missing stream metadata decodes as `nil`.
+
 When the original fails before its first frame, resolve again with a device check that returns
 `.unsupported(.decoderError)`. The SDK never asks HLS for an original.
 
