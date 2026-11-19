@@ -53,6 +53,10 @@ public struct PutioMediaStream: Decodable, Equatable, Sendable {
   public let profile: String?
   public let level: Int?
   public let channels: Int?
+  public let bitDepth: Int?
+  public let isHDR: Bool?
+  public let dolbyVisionProfile: Int?
+  public let isDefault: Bool?
 
   public init(
     codecType: PutioMediaStreamType?,
@@ -64,6 +68,26 @@ public struct PutioMediaStream: Decodable, Equatable, Sendable {
     level: Int? = nil,
     channels: Int? = nil
   ) {
+    self.init(
+      codecType: codecType, codecName: codecName, rfc6381Codec: rfc6381Codec, width: width,
+      height: height, profile: profile, level: level, channels: channels,
+      bitDepth: nil, isHDR: nil, dolbyVisionProfile: nil, isDefault: nil)
+  }
+
+  public init(
+    codecType: PutioMediaStreamType?,
+    codecName: String?,
+    rfc6381Codec: String? = nil,
+    width: Int? = nil,
+    height: Int? = nil,
+    profile: String? = nil,
+    level: Int? = nil,
+    channels: Int? = nil,
+    bitDepth: Int? = nil,
+    isHDR: Bool? = nil,
+    dolbyVisionProfile: Int? = nil,
+    isDefault: Bool? = nil
+  ) {
     self.codecType = codecType
     self.codecName = codecName
     self.rfc6381Codec = rfc6381Codec
@@ -72,6 +96,10 @@ public struct PutioMediaStream: Decodable, Equatable, Sendable {
     self.profile = profile
     self.level = level
     self.channels = channels
+    self.bitDepth = bitDepth
+    self.isHDR = isHDR
+    self.dolbyVisionProfile = dolbyVisionProfile
+    self.isDefault = isDefault
   }
 
   enum CodingKeys: String, CodingKey {
@@ -83,6 +111,10 @@ public struct PutioMediaStream: Decodable, Equatable, Sendable {
     case profile
     case level
     case channels
+    case bitDepth = "bit_depth"
+    case isHDR = "hdr"
+    case dolbyVisionProfile = "dolby_vision_profile"
+    case isDefault = "default"
   }
 
   public init(from decoder: Decoder) throws {
@@ -96,6 +128,10 @@ public struct PutioMediaStream: Decodable, Equatable, Sendable {
     self.profile = try container.decodeIfPresent(String.self, forKey: .profile)
     self.level = try container.decodeIfPresent(Int.self, forKey: .level)
     self.channels = try container.decodeIfPresent(Int.self, forKey: .channels)
+    self.bitDepth = try container.decodeIfPresent(Int.self, forKey: .bitDepth)
+    self.isHDR = try container.decodeIfPresent(Bool.self, forKey: .isHDR)
+    self.dolbyVisionProfile = try container.decodeIfPresent(Int.self, forKey: .dolbyVisionProfile)
+    self.isDefault = try container.decodeIfPresent(Bool.self, forKey: .isDefault)
   }
 }
 
