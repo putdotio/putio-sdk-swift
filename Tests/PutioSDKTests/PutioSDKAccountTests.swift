@@ -1,5 +1,9 @@
 import XCTest
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 @testable import PutioSDK
 
 final class PutioSDKAccountTests: XCTestCase {
@@ -275,7 +279,7 @@ final class PutioSDKAccountTests: XCTestCase {
       XCTAssertEqual(request.httpMethod, "POST")
       let body = try XCTUnwrap(requestBodyData(for: request))
       let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: NSNumber])
-      XCTAssertTrue(json.values.allSatisfy { CFGetTypeID($0) == CFBooleanGetTypeID() })
+      XCTAssertTrue(json.values.allSatisfy { String(cString: $0.objCType) == "c" })
       bodies.append(json.mapValues(\.boolValue))
       return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"status":"OK"}"#.utf8))
     }

@@ -1,5 +1,9 @@
 import XCTest
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 @testable import PutioSDK
 
 final class PutioSDKDomainDecodeTests: XCTestCase {

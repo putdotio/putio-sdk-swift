@@ -1,5 +1,11 @@
 import Foundation
-import Security
+
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+#if canImport(Security)
+  import Security
+#endif
 
 public enum PutioOAuthCallbackError: Error, LocalizedError, Equatable, Sendable {
   case invalidCallbackURL
@@ -20,7 +26,7 @@ public enum PutioOAuthCallbackError: Error, LocalizedError, Equatable, Sendable 
 
 public enum PutioOAuthStateError: Error, LocalizedError, Equatable, Sendable {
   case invalidByteCount
-  case generationFailed(OSStatus)
+  case generationFailed(Int32)
 
   public var errorDescription: String? {
     switch self {
@@ -38,17 +44,22 @@ extension PutioSDK {
       throw PutioOAuthStateError.invalidByteCount
     }
 
-    var bytes = [UInt8](repeating: 0, count: byteCount)
-    let status = bytes.withUnsafeMutableBytes { buffer -> OSStatus in
-      guard let baseAddress = buffer.baseAddress else {
-        return errSecParam
-      }
+    #if canImport(Security)
+      var bytes = [UInt8](repeating: 0, count: byteCount)
+      let status = bytes.withUnsafeMutableBytes { buffer -> OSStatus in
+        guard let baseAddress = buffer.baseAddress else {
+          return errSecParam
+        }
 
-      return SecRandomCopyBytes(kSecRandomDefault, byteCount, baseAddress)
-    }
-    guard status == errSecSuccess else {
-      throw PutioOAuthStateError.generationFailed(status)
-    }
+        return SecRandomCopyBytes(kSecRandomDefault, byteCount, baseAddress)
+      }
+      guard status == errSecSuccess else {
+        throw PutioOAuthStateError.generationFailed(status)
+      }
+    #else
+      var generator = SystemRandomNumberGenerator()
+      let bytes = (0..<byteCount).map { _ in UInt8.random(in: .min ... .max, using: &generator) }
+    #endif
 
     return Data(bytes).base64EncodedString()
       .replacingOccurrences(of: "+", with: "-")

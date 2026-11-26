@@ -1,5 +1,9 @@
 import Foundation
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 public protocol PutioSDKDelegate: AnyObject {
   func onPutioSDKError(error: PutioSDKError)
 }

@@ -1,5 +1,9 @@
 import XCTest
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 @testable import PutioSDK
 
 /// An app-owned config shape, the way a consumer declares one.
