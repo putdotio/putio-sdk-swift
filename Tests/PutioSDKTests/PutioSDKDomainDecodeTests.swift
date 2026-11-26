@@ -286,6 +286,23 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
     XCTAssertTrue(conversion.status.isKnown)
   }
 
+  func testDeleteMp4SendsDeleteAndDecodesOK() async throws {
+    try installMockRequestHandler { request in
+      XCTAssertEqual(request.httpMethod, "DELETE")
+      XCTAssertEqual(request.url?.path, "/v2/files/42/mp4")
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"status":"OK"}"#.utf8))
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),
+      urlSession: makeTestSession()
+    )
+
+    let response = try await sdk.deleteMp4(fileID: 42)
+
+    XCTAssertEqual(response.status, "OK")
+  }
+
   func testGetStartFromDecodesNumericStartPosition() async throws {
     try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/start-from")
