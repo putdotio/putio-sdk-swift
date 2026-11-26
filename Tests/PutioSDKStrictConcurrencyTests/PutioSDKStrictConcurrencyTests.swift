@@ -134,6 +134,7 @@ private func auditAsyncConsumerSurface(_ sdk: PutioSDK) async throws {
   ) { _ in .playable }
   _ = try await sdk.resolveAudioPlaybackSource(fileID: 1, downloadToken: "download-token")
   _ = try await sdk.getMp4ConversionStatus(fileID: 1)
+  _ = try await sdk.deleteMp4(fileID: 1)
   _ = try await sdk.getGrants()
   _ = try await sdk.getClients()
   _ = try await sdk.getAppIcon(appID: 1)

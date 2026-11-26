@@ -141,6 +141,10 @@ extension PutioSDK {
     return envelope.mp4
   }
 
+  public func deleteMp4(fileID: Int) async throws -> PutioOKResponse {
+    try await request("/files/\(fileID)/mp4", method: .delete, as: PutioOKResponse.self)
+  }
+
   public func getStartFrom(fileID: Int) async throws -> Int {
     let response = try await request("/files/\(fileID)/start-from", as: PutioStartFromResponse.self)
     return response.startFrom
