@@ -1,4 +1,4 @@
-.PHONY: verify markdown-check verify-concurrency verify-spm verify-platforms coverage-check sendable-audit transport-isolation-check simulator-destination-check live-test print-simulator-destination secrets-setup secrets-clean clean
+.PHONY: verify verify-linux markdown-check verify-concurrency verify-spm verify-platforms coverage-check sendable-audit transport-isolation-check simulator-destination-check live-test print-simulator-destination secrets-setup secrets-clean clean
 
 # package.json pins oxfmt so Renovate can bump it; needs Node on PATH.
 OXFMT = npx --yes oxfmt@$(shell node -p "require('./package.json').devDependencies.oxfmt")
@@ -34,6 +34,10 @@ markdown-check:
 
 verify-spm:
 	swift build
+
+verify-linux:
+	swift build --build-tests
+	swift test --skip-build --filter PutioSDKTests --filter PutioSDKStrictConcurrencyTests
 
 # tvOS and watchOS unit-test runs (each builds the library for its platform first).
 verify-platforms:

@@ -34,22 +34,40 @@ final class MockURLProtocol: URLProtocol {
     request
   }
 
+  private let loader = DispatchQueue(label: "MockURLProtocol.loader")
+  private let stateLock = NSLock()
+  private var isStopped = false
+
   override func startLoading() {
     guard let handler = Self.requestHandler else {
       fatalError("MockURLProtocol.requestHandler must be configured before use")
     }
 
-    do {
-      let (response, data) = try handler(request)
-      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-      client?.urlProtocol(self, didLoad: data)
-      client?.urlProtocolDidFinishLoading(self)
-    } catch {
-      client?.urlProtocol(self, didFailWithError: error)
+    let request = request
+    nonisolated(unsafe) let loading = self
+    loader.async {
+      let result = Result { try handler(request) }
+      loading.deliver(result)
     }
   }
 
-  override func stopLoading() {}
+  override func stopLoading() {
+    stateLock.withLock { isStopped = true }
+  }
+
+  private func deliver(_ result: Result<(HTTPURLResponse, Data), Error>) {
+    stateLock.withLock {
+      guard !isStopped else { return }
+      switch result {
+      case .success(let (response, data)):
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+      case .failure(let error):
+        client?.urlProtocol(self, didFailWithError: error)
+      }
+    }
+  }
 }
 
 func makeTestSession() -> URLSession {

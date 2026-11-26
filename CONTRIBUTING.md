@@ -11,6 +11,7 @@ this checkout.
 ```bash
 make verify               # the gate: format, audits, tests, coverage, example build
 make verify-platforms     # tvOS and watchOS simulators
+make verify-linux         # Linux build and tests
 make verify-concurrency   # strict-concurrency consumer proof only
 make markdown-check       # Markdown format only
 ```
