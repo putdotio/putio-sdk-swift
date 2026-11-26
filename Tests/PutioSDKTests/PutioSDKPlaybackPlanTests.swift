@@ -1,11 +1,11 @@
 import Foundation
+import XCTest
+
+@testable import PutioSDK
 
 #if canImport(FoundationNetworking)
   import FoundationNetworking
 #endif
-import XCTest
-
-@testable import PutioSDK
 
 final class PutioSDKPlaybackPlanTests: XCTestCase {
   override func tearDown() {

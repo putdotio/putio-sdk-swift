@@ -1,11 +1,11 @@
 import Foundation
+import XCTest
+
+@testable import PutioSDK
 
 #if canImport(FoundationNetworking)
   import FoundationNetworking
 #endif
-import XCTest
-
-@testable import PutioSDK
 
 // watchOS proxies URLSession loads out of process and never consults custom
 // URLProtocol classes, so URLProtocol-backed transport tests cannot run there.
