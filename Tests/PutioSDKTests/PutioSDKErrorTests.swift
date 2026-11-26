@@ -2,6 +2,10 @@ import XCTest
 
 @testable import PutioSDK
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 final class PutioSDKErrorTests: XCTestCase {
   private final class DelegateProbe: PutioSDKDelegate {
     var errors: [PutioSDKError] = []

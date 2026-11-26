@@ -2,6 +2,10 @@ import XCTest
 
 @testable import PutioSDK
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 final class PutioSDKTransfersTests: XCTestCase {
   override func tearDown() {
     MockURLProtocol.requestHandler = nil

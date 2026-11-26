@@ -2,6 +2,10 @@ import XCTest
 
 @testable import PutioSDK
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 final class PutioSDKLiveTests: XCTestCase {
   func testAccountInfoLoadsAgainstRealAPI() async throws {
     let sdk = try LiveSupport.newAuthedClient()

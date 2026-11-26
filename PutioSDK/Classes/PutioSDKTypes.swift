@@ -135,7 +135,7 @@ enum PutioRequestValue: Equatable, Encodable, Sendable {
     case let number as NSNumber:
       // Integers keep their exact text through UInt64; anything wider or
       // fractional travels as a Double, which is what JSON readers get anyway.
-      if CFGetTypeID(number) == CFBooleanGetTypeID() {
+      if Self.isBoolean(number) {
         self = .bool(number.boolValue)
       } else if let integer = Int(exactly: number) {
         self = .integer(integer)
@@ -151,6 +151,14 @@ enum PutioRequestValue: Equatable, Encodable, Sendable {
     default:
       throw PutioConfigInputError.unencodableValue
     }
+  }
+
+  private static func isBoolean(_ number: NSNumber) -> Bool {
+    #if canImport(Darwin)
+      CFGetTypeID(number) == CFBooleanGetTypeID()
+    #else
+      String(cString: number.objCType) == "c"
+    #endif
   }
 }
 

@@ -2,6 +2,10 @@ import XCTest
 
 @testable import PutioSDK
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 /// An app-owned config shape, the way a consumer declares one.
 private struct AppConfig: Codable, Equatable {
   var autoplayNextVideo = false
