@@ -241,6 +241,8 @@ public struct PutioFilesListQuery: Sendable {
   public let sortBy: String?
   public let mp4Status: Bool
   public let videoMetadata: Bool
+  public let streamURLParent: Bool
+  public let mp4StreamURLParent: Bool
 
   public init(
     perPage: Int? = nil,
@@ -251,7 +253,9 @@ public struct PutioFilesListQuery: Sendable {
     fileType: PutioFileType? = nil,
     sortBy: String? = nil,
     mp4Status: Bool = false,
-    videoMetadata: Bool = false
+    videoMetadata: Bool = false,
+    streamURLParent: Bool = false,
+    mp4StreamURLParent: Bool = false
   ) {
     self.perPage = perPage
     self.total = total
@@ -262,16 +266,18 @@ public struct PutioFilesListQuery: Sendable {
     self.sortBy = sortBy
     self.mp4Status = mp4Status
     self.videoMetadata = videoMetadata
+    self.streamURLParent = streamURLParent
+    self.mp4StreamURLParent = mp4StreamURLParent
   }
 
   func parameters(parentID: Int) -> PutioRequestParameters {
     var query: PutioRequestParameters = [
       "parent_id": .integer(parentID),
       "mp4_status_parent": 1,
-      "stream_url_parent": 1,
-      "mp4_stream_url_parent": 1,
       "video_metadata_parent": 1,
     ]
+    if streamURLParent { query["stream_url_parent"] = 1 }
+    if mp4StreamURLParent { query["mp4_stream_url_parent"] = 1 }
     if let perPage { query["per_page"] = .integer(perPage) }
     if total { query["total"] = 1 }
     if hidden { query["hidden"] = 1 }
@@ -308,10 +314,10 @@ public struct PutioFileDetailsQuery: Sendable {
   public let mp4Status: Bool
 
   public init(
-    mp4Size: Bool = true,
+    mp4Size: Bool = false,
     startFrom: Bool = true,
-    streamURL: Bool = true,
-    mp4StreamURL: Bool = true,
+    streamURL: Bool = false,
+    mp4StreamURL: Bool = false,
     mediaInfo: Bool = false,
     mp4Status: Bool = false
   ) {
