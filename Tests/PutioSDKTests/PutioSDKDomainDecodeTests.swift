@@ -150,12 +150,12 @@ final class PutioSDKDomainDecodeTests: XCTestCase {
     }
   }
 
-  func testGetSubtitlesPreservesOauthTokenQueryAndDecodesResponse() async throws {
+  func testGetSubtitlesUsesAuthorizationHeaderWithoutOauthTokenQuery() async throws {
     try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/files/42/subtitles")
+      XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token token-123")
       let components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)
-      XCTAssertEqual(
-        components?.queryItems?.first(where: { $0.name == "oauth_token" })?.value, "token-123")
+      XCTAssertNil(components?.queryItems?.first(where: { $0.name == "oauth_token" }))
 
       let payload = """
         {

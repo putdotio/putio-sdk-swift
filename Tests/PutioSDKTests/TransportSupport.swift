@@ -19,7 +19,17 @@ func installMockRequestHandler(
   #if os(watchOS)
     throw XCTSkip("watchOS URLSession does not consult custom URLProtocol classes")
   #else
-    MockURLProtocol.requestHandler = handler
+    MockURLProtocol.requestHandler = { request in
+      if let url = request.url,
+        let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+      {
+        XCTAssertFalse(
+          queryItems.contains(where: { $0.name.lowercased() == "oauth_token" }),
+          "API request URL must not carry oauth_token query parameter: \(url.path)"
+        )
+      }
+      return try handler(request)
+    }
   #endif
 }
 
