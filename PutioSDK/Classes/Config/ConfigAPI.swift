@@ -62,6 +62,28 @@ extension PutioSDK {
     return try await request(path, method: .delete, as: PutioOKResponse.self)
   }
 
+  /// Reads the typed search-history list and enabled flag from `/config`.
+  public func getSearchHistoryConfig() async throws -> PutioSearchHistoryConfig {
+    try await getConfig(as: PutioSearchHistoryConfig.self)
+  }
+
+  /// Writes deduplicated, newest-first search-history keywords (max 5) to `/config`.
+  public func setSearchHistory(_ items: [String]) async throws -> PutioOKResponse {
+    try await setConfigValue(
+      key: SearchHistoryConfigKey.items,
+      PutioSearchHistoryConfig(items: items).items)
+  }
+
+  /// Updates whether search history recording is enabled in `/config`.
+  public func setSearchHistoryEnabled(_ isEnabled: Bool) async throws -> PutioOKResponse {
+    try await setConfigValue(key: SearchHistoryConfigKey.isEnabled, isEnabled)
+  }
+
+  /// Clears stored search-history keywords in `/config`.
+  public func clearSearchHistory() async throws -> PutioOKResponse {
+    try await setConfigValue(key: SearchHistoryConfigKey.items, [String]())
+  }
+
   @available(*, deprecated, message: "Declare the app's config type and call getConfig(as:).")
   public func getConfig() async throws -> PutioConfig {
     try await getConfig(as: PutioConfig.self)
@@ -121,6 +143,11 @@ public enum PutioConfigInputError: Error, Equatable, Sendable {
   /// `writeConfig` was given a value that did not encode to a JSON object,
   /// such as a scalar, an array, or `nil`.
   case nonObjectConfig
+}
+
+private enum SearchHistoryConfigKey {
+  static let items = "searchHistory"
+  static let isEnabled = "searchHistoryEnabled"
 }
 
 private struct PutioConfigDocumentEnvelope<Config: Decodable>: Decodable {

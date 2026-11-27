@@ -243,6 +243,64 @@ final class PutioSDKConfigTests: XCTestCase {
     XCTAssertEqual(paths, ["/v2/config", "/v2/config/chromecast_playback_type"])
   }
 
+  func testGetSearchHistoryConfigDecodesDefaultsAndNormalizesItems() async throws {
+    var call = 0
+    try installMockRequestHandler { request in
+      call += 1
+      XCTAssertEqual(request.httpMethod, "GET")
+      XCTAssertEqual(request.url?.path, "/v2/config")
+      let payload =
+        call == 1
+        ? #"{"status":"OK","config":{}}"#
+        : #"{"status":"OK","config":{"searchHistory":["alpha"," ","beta","alpha","gamma","delta","epsilon","zeta"],"searchHistoryEnabled":false}}"#
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
+    }
+
+    let sdk = makeSDK()
+    let defaults = try await sdk.getSearchHistoryConfig()
+    XCTAssertEqual(defaults, PutioSearchHistoryConfig(items: [], isEnabled: true))
+
+    let populated = try await sdk.getSearchHistoryConfig()
+    XCTAssertEqual(
+      populated,
+      PutioSearchHistoryConfig(
+        items: ["alpha", "beta", "gamma", "delta", "epsilon"], isEnabled: false))
+    XCTAssertEqual(
+      populated.recording("  gamma  "),
+      ["gamma", "alpha", "beta", "delta", "epsilon"])
+    XCTAssertEqual(
+      populated.recording("new-term"),
+      ["new-term", "alpha", "beta", "gamma", "delta"])
+    XCTAssertEqual(populated.recording("   "), populated.items)
+  }
+
+  func testSetAndClearSearchHistoryRoundTripConfigKeys() async throws {
+    var writes: [(path: String, body: String)] = []
+    try installMockRequestHandler { request in
+      XCTAssertEqual(request.httpMethod, "PUT")
+      let body = try XCTUnwrap(requestBodyData(for: request))
+      writes.append(
+        (
+          path: try XCTUnwrap(request.url?.path),
+          body: try XCTUnwrap(String(data: body, encoding: .utf8))
+        ))
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"status":"OK"}"#.utf8))
+    }
+
+    let sdk = makeSDK()
+    _ = try await sdk.setSearchHistory(["arch", "ubuntu", "arch", "debian", "fedora", "nix", "bsd"])
+    _ = try await sdk.setSearchHistoryEnabled(false)
+    _ = try await sdk.clearSearchHistory()
+
+    XCTAssertEqual(writes.count, 3)
+    XCTAssertEqual(writes[0].path, "/v2/config/searchHistory")
+    XCTAssertEqual(writes[0].body, #"{"value":["arch","ubuntu","debian","fedora","nix"]}"#)
+    XCTAssertEqual(writes[1].path, "/v2/config/searchHistoryEnabled")
+    XCTAssertEqual(writes[1].body, #"{"value":false}"#)
+    XCTAssertEqual(writes[2].path, "/v2/config/searchHistory")
+    XCTAssertEqual(writes[2].body, #"{"value":[]}"#)
+  }
+
   private func makeSDK() -> PutioSDK {
     PutioSDK(
       config: PutioSDKConfig(clientID: "ios-app", token: "token-123"),

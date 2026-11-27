@@ -18,6 +18,7 @@ final class PutioSDKStrictConcurrencyTests: XCTestCase {
   func testLowRiskValueTypesAreSendable() {
     requireSendable(PutioSDKConfig.self)
     requireSendable(PutioConfigInputError.self)
+    requireSendable(PutioSearchHistoryConfig.self)
     requireSendable(PutioChromecastPlaybackType.self)
     requireSendable(PutioFileType.self)
     requireSendable(PutioTransferType.self)
@@ -122,6 +123,10 @@ private func auditAsyncConsumerSurface(_ sdk: PutioSDK) async throws {
   _ = try await sdk.setConfigValue(key: "key", true)
   _ = try await sdk.writeConfig(["key": true])
   _ = try await sdk.deleteConfigValue(key: "key")
+  _ = try await sdk.getSearchHistoryConfig()
+  _ = try await sdk.setSearchHistory(["query"])
+  _ = try await sdk.setSearchHistoryEnabled(true)
+  _ = try await sdk.clearSearchHistory()
   _ = try await sdk.searchFiles(query: PutioFileSearchQuery(keyword: "query"))
   _ = try await sdk.getFiles(parentID: 0)
   _ = try await sdk.continueFiles(cursor: "cursor")
