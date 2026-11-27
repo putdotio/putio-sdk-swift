@@ -138,7 +138,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container:
-      image: swift:6.2.3-bookworm@sha256:5b36d0cbe21b24e22fb443abe7f0606e7ae05b7ecfd9479d058db9eebb3125cc
+      image: swift:6.4.3-bookworm@sha256:92d8f5e313f768e936e0944ceca3c31bd93ff5be9d7453b4838098b49db8b38b
 
     steps:
       - name: Check out repository
