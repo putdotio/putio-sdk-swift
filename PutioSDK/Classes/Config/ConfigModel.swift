@@ -1,5 +1,47 @@
 import Foundation
 
+public struct PutioSearchHistoryConfig: Codable, Equatable, Sendable {
+  public static let maxItems = 5
+
+  public let items: [String]
+  public let isEnabled: Bool
+
+  public init(items: [String] = [], isEnabled: Bool = true) {
+    self.items = Self.normalized(items)
+    self.isEnabled = isEnabled
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case items = "searchHistory"
+    case isEnabled = "searchHistoryEnabled"
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    let rawItems = try container.decodeIfPresent([String].self, forKey: .items) ?? []
+    self.items = Self.normalized(rawItems)
+    self.isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+  }
+
+  public func recording(_ keyword: String) -> [String] {
+    let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return items }
+    return Self.normalized([trimmed] + items)
+  }
+
+  private static func normalized(_ values: [String]) -> [String] {
+    var seen = Set<String>()
+    var result: [String] = []
+    for value in values {
+      let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !trimmed.isEmpty, seen.insert(trimmed).inserted else { continue }
+      result.append(trimmed)
+      if result.count == maxItems { break }
+    }
+    return result
+  }
+}
+
 public enum PutioChromecastPlaybackType: String, Codable, CaseIterable, Sendable {
   case hls
   case mp4
