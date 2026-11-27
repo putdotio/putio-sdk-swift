@@ -146,12 +146,10 @@ final class PutioSDKAuthTests: XCTestCase {
         return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
       case "/v2/two_factor/verify/totp":
         XCTAssertEqual(request.httpMethod, "POST")
-        XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "token two-factor-token")
         let components = URLComponents(
           url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)
-        XCTAssertEqual(
-          components?.queryItems?.first(where: { $0.name == "oauth_token" })?.value,
-          "two-factor-token")
+        XCTAssertNil(components?.queryItems?.first(where: { $0.name == "oauth_token" }))
         let body = try XCTUnwrap(requestBodyData(for: request))
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
         XCTAssertEqual(json["code"], "123456")

@@ -238,8 +238,7 @@ extension PutioSDK {
     try await request(
       "/two_factor/verify/totp",
       method: .post,
-      headers: ["Authorization": ""],
-      query: ["oauth_token": .string(twoFactorScopedToken)],
+      headers: ["Authorization": "token \(twoFactorScopedToken)"],
       body: ["code": .string(code)],
       as: PutioVerifyTOTPResult.self
     )
