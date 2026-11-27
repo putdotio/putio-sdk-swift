@@ -134,8 +134,8 @@ final class PutioSDKAccountTests: XCTestCase {
     XCTAssertFalse(account.isSubAccount)
     XCTAssertEqual(account.filesWillBeDeletedAt, "")
     XCTAssertEqual(account.passwordLastChangedAt, "")
-    XCTAssertTrue(PutioClearDataOptionKeys.contains("history"))
-    XCTAssertTrue(PutioClearDataOptionKeys.contains("trash"))
+    XCTAssertTrue(putioClearDataOptionKeys.contains("history"))
+    XCTAssertTrue(putioClearDataOptionKeys.contains("trash"))
   }
 
   func testAccountDecodesInactiveStatusForFamilyMember() throws {

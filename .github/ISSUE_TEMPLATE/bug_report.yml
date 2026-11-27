@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a reproducible problem in putio-sdk-swift
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal code sample or failing test if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: SDK version or commit, Xcode version, Swift version, and platform/OS version.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Evidence
+      description: Paste any relevant error output, logs, or response details.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched for existing issues covering the same problem
+          required: true
+        - label: I removed access tokens, secrets, and private account data from the report
+          required: true

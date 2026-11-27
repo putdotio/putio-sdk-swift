@@ -146,10 +146,7 @@ open class PutioAccount: Decodable {
   }
 }
 
-// Public API surface; renaming to lowerCamelCase is a breaking change deferred
-// to the next major release.
-// swift-format-ignore: AlwaysUseLowerCamelCase
-public var PutioClearDataOptionKeys = [
+public let putioClearDataOptionKeys = [
   "files",
   "finished_transfers",
   "active_transfers",

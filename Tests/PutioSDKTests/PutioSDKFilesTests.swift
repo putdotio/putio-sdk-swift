@@ -128,7 +128,9 @@ final class PutioSDKFilesTests: XCTestCase {
       case "/v2/files/42":
         let components = URLComponents(
           url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)
-        XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "mp4_size" })?.value, "1")
+        XCTAssertNil(components?.queryItems?.first(where: { $0.name == "mp4_size" }))
+        XCTAssertNil(components?.queryItems?.first(where: { $0.name == "stream_url" }))
+        XCTAssertNil(components?.queryItems?.first(where: { $0.name == "mp4_stream_url" }))
         XCTAssertEqual(
           components?.queryItems?.first(where: { $0.name == "start_from" })?.value, "1")
         let payload = """
@@ -889,7 +891,9 @@ final class PutioSDKFilesTests: XCTestCase {
       fileType: .video,
       sortBy: "NAME_ASC",
       mp4Status: true,
-      videoMetadata: true
+      videoMetadata: true,
+      streamURLParent: true,
+      mp4StreamURLParent: true
     )
     let detailsQuery = PutioFileDetailsQuery(
       mp4Size: true,
@@ -915,7 +919,15 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertEqual(listQuery.parameters(parentID: 7)["sort_by"], .string("NAME_ASC"))
     XCTAssertEqual(listQuery.parameters(parentID: 7)["mp4_status"], .integer(1))
     XCTAssertEqual(listQuery.parameters(parentID: 7)["video_metadata"], .integer(1))
-    XCTAssertNil(PutioFilesListQuery().parameters(parentID: 7)["video_metadata"])
+    let defaultListParams = PutioFilesListQuery().parameters(parentID: 7)
+    XCTAssertNil(defaultListParams["video_metadata"])
+    XCTAssertNil(defaultListParams["stream_url_parent"])
+    XCTAssertNil(defaultListParams["mp4_stream_url_parent"])
+    let defaultDetailsParams = PutioFileDetailsQuery().parameters
+    XCTAssertEqual(defaultDetailsParams["start_from"], .integer(1))
+    XCTAssertNil(defaultDetailsParams["mp4_size"])
+    XCTAssertNil(defaultDetailsParams["stream_url"])
+    XCTAssertNil(defaultDetailsParams["mp4_stream_url"])
     XCTAssertEqual(detailsQuery.parameters["mp4_size"], .integer(1))
     XCTAssertEqual(detailsQuery.parameters["start_from"], .integer(1))
     XCTAssertEqual(detailsQuery.parameters["stream_url"], .integer(1))
