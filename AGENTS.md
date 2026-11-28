@@ -9,8 +9,8 @@ Public Swift SDK for the put.io API; its first-party consumer is
 - The package is open source: keep first-party client identifiers, callback URLs,
   and token-scope details out of code, docs, and the example app, and use
   placeholders such as `<your-client-id>`.
-- Live-test credentials live in an ignored `.env.local`; run
-  `make secrets-clean` before you remove a worktree.
+- Live-test credentials can be passed via environment variables or an ignored
+  `.env.local`; remove any local `.env.local` before removing a worktree.
 - Public `Sendable` conformances are API. Never add `@unchecked Sendable` to a
   type that is not thread-safe. Making the `open` class models or
   `PutioClearDataOptionKeys` `Sendable` breaks the API and needs a major release.

@@ -1,4 +1,4 @@
-.PHONY: verify verify-linux markdown-check verify-concurrency verify-spm verify-platforms coverage-check sendable-audit transport-isolation-check simulator-destination-check live-test print-simulator-destination secrets-setup secrets-clean clean
+.PHONY: verify verify-linux markdown-check verify-concurrency verify-spm verify-platforms coverage-check sendable-audit transport-isolation-check simulator-destination-check live-test print-simulator-destination clean
 
 # package.json pins oxfmt so Renovate can bump it; needs Node on PATH.
 OXFMT = npx --yes oxfmt@$(shell node -p "require('./package.json').devDependencies.oxfmt")
@@ -61,12 +61,6 @@ simulator-destination-check:
 
 live-test:
 	swift test --filter PutioSDKLiveTests
-
-secrets-setup:
-	./scripts/secrets-setup.sh
-
-secrets-clean:
-	rm -f .env.local .env.local.* .env.local.swp
 
 print-simulator-destination:
 	@./scripts/xcode-iphone-simulator-destination.sh --project Example/PutioSDK.xcodeproj --scheme PutioSDK-Example
