@@ -12,8 +12,8 @@ Public Swift SDK for the put.io API; its first-party consumer is
 - Live-test credentials can be passed via environment variables or an ignored
   `.env.local`; remove any local `.env.local` before removing a worktree.
 - Public `Sendable` conformances are API. Never add `@unchecked Sendable` to a
-  type that is not thread-safe. Making the `open` class models or
-  `PutioClearDataOptionKeys` `Sendable` breaks the API and needs a major release.
+  type that is not thread-safe. Making the `open` class models
+  `Sendable` breaks the API and needs a major release.
 
 ## Skills
 
