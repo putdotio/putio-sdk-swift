@@ -277,6 +277,73 @@ final class PutioSDKAuthTests: XCTestCase {
     XCTAssertEqual(counter.value, 3)
   }
 
+  func testLogoutWithExplicitTokenUsesProvidedTokenHeader() async throws {
+    let recorder = RequestRecorder()
+    try installMockRequestHandler { request in
+      recorder.record(
+        method: request.httpMethod ?? "",
+        path: request.url?.path ?? "",
+        authorization: request.value(forHTTPHeaderField: "Authorization")
+      )
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"status":"OK"}"#.utf8))
+    }
+
+    let sdkWithSession = PutioSDK(
+      config: PutioSDKConfig(
+        clientID: "ios-app", clientName: "put.io TV", token: "session-token"),
+      urlSession: makeTestSession()
+    )
+    let firstResponse = try await sdkWithSession.logout(token: "explicit-token")
+    XCTAssertEqual(firstResponse.status, "OK")
+
+    let sdkWithoutSession = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let secondResponse = try await sdkWithoutSession.logout(token: "device-token")
+    XCTAssertEqual(secondResponse.status, "OK")
+
+    XCTAssertEqual(
+      recorder.requests,
+      [
+        RecordedRequest(
+          method: "POST", path: "/v2/oauth/grants/logout", authorization: "token explicit-token"),
+        RecordedRequest(
+          method: "POST", path: "/v2/oauth/grants/logout", authorization: "token device-token"),
+      ]
+    )
+  }
+
+  func testAwaitDeviceCodeAuthorizationDoesNotRevokeWhenUncancelled() async throws {
+    let recorder = RequestRecorder()
+    try installMockRequestHandler { request in
+      recorder.record(
+        method: request.httpMethod ?? "",
+        path: request.url?.path ?? "",
+        authorization: request.value(forHTTPHeaderField: "Authorization")
+      )
+      return (
+        makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":"tv-token"}"#.utf8)
+      )
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+
+    let authorization = try await sdk.awaitDeviceCodeAuthorization(
+      code: "READY", pollInterval: .milliseconds(5))
+
+    XCTAssertEqual(authorization, .authorized(token: "tv-token"))
+    XCTAssertEqual(
+      recorder.requests,
+      [
+        RecordedRequest(method: "GET", path: "/v2/oauth2/oob/code/READY", authorization: nil)
+      ]
+    )
+  }
+
   func testAwaitDeviceCodeAuthorizationSurfacesExpiryAsTypedState() async throws {
     try installMockRequestHandler { request in
       XCTAssertEqual(request.url?.path, "/v2/oauth2/oob/code/STALE")
@@ -487,22 +554,114 @@ final class PutioSDKAuthTests: XCTestCase {
       clock.now - cancelled, .seconds(2), "default clock sleep must respond to cancellation")
   }
 
-  // Cancellation after a poll has produced a result. The SDK parks at `.pollCompleted`
-  // with `.authorized` already in hand; cancelling there and releasing proves the
-  // post-poll cancellation check wins. Removing that check returns `.authorized` here.
-  func testAwaitDeviceCodeAuthorizationDiscardsResultWhenCancelledAfterPollCompletes()
+  func testAwaitDeviceCodeAuthorizationRevokesTokenWhenCancelledAfterPollCompletes()
     async throws
   {
+    let recorder = RequestRecorder()
+    let logoutStarted = DispatchSemaphore(value: 0)
+    let releaseLogout = DispatchSemaphore(value: 0)
     try installMockRequestHandler { request in
-      (
-        makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":"tv-token"}"#.utf8)
+      let path = request.url?.path ?? ""
+      recorder.record(
+        method: request.httpMethod ?? "",
+        path: path,
+        authorization: request.value(forHTTPHeaderField: "Authorization")
       )
+      switch path {
+      case "/v2/oauth2/oob/code/READY":
+        return (
+          makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":"tv-token"}"#.utf8)
+        )
+      case "/v2/oauth/grants/logout":
+        logoutStarted.signal()
+        _ = releaseLogout.wait(timeout: .now() + 5)
+        return (makeHTTPResponse(for: request, statusCode: 200), Data(#"{"status":"OK"}"#.utf8))
+      default:
+        XCTFail("Unexpected path \(path)")
+        return (makeHTTPResponse(for: request, statusCode: 404), Data())
+      }
     }
 
     let sdk = PutioSDK(
       config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
       urlSession: makeTestSession()
     )
+    let barrier = PollBarrier()
+    sdk.deviceCodePollObserver = { event in
+      if event == .pollCompleted { await barrier.park() }
+    }
+
+    let taskFinished = PollCounter()
+    let task = Task {
+      defer { _ = taskFinished.increment() }
+      return try await sdk.awaitDeviceCodeAuthorization(code: "READY", pollInterval: .seconds(60))
+    }
+    defer {
+      task.cancel()
+      releaseLogout.signal()
+      Task { await barrier.abandon() }
+    }
+    try await barrier.waitUntilParked()
+    task.cancel()
+    await barrier.release()
+
+    let revokeInFlight = await withCheckedContinuation { continuation in
+      DispatchQueue.global().async {
+        continuation.resume(returning: logoutStarted.wait(timeout: .now() + 5) == .success)
+      }
+    }
+    XCTAssertTrue(revokeInFlight, "expected cancellation to start token revocation")
+    XCTAssertEqual(
+      taskFinished.value, 0,
+      "awaitDeviceCodeAuthorization must await revocation before throwing CancellationError")
+    releaseLogout.signal()
+
+    do {
+      let authorization = try await task.value
+      XCTFail("Expected cancellation to win over \(authorization)")
+    } catch is CancellationError {
+    }
+
+    XCTAssertEqual(
+      recorder.requests,
+      [
+        RecordedRequest(method: "GET", path: "/v2/oauth2/oob/code/READY", authorization: nil),
+        RecordedRequest(
+          method: "POST", path: "/v2/oauth/grants/logout", authorization: "token tv-token"),
+      ]
+    )
+  }
+
+  func testAwaitDeviceCodeAuthorizationStillThrowsCancellationErrorWhenRevokeFails()
+    async throws
+  {
+    let recorder = RequestRecorder()
+    try installMockRequestHandler { request in
+      let path = request.url?.path ?? ""
+      recorder.record(
+        method: request.httpMethod ?? "",
+        path: path,
+        authorization: request.value(forHTTPHeaderField: "Authorization")
+      )
+      switch path {
+      case "/v2/oauth2/oob/code/READY":
+        return (
+          makeHTTPResponse(for: request, statusCode: 200), Data(#"{"oauth_token":"tv-token"}"#.utf8)
+        )
+      case "/v2/oauth/grants/logout":
+        return (makeHTTPResponse(for: request, statusCode: 500), Data(#"{"status":"ERROR"}"#.utf8))
+      default:
+        XCTFail("Unexpected path \(path)")
+        return (makeHTTPResponse(for: request, statusCode: 404), Data())
+      }
+    }
+
+    let sdk = PutioSDK(
+      config: PutioSDKConfig(clientID: "ios-app", clientName: "put.io TV"),
+      urlSession: makeTestSession()
+    )
+    let delegate = RecordingDelegate()
+    sdk.delegate = delegate
     let barrier = PollBarrier()
     sdk.deviceCodePollObserver = { event in
       if event == .pollCompleted { await barrier.park() }
@@ -524,6 +683,15 @@ final class PutioSDKAuthTests: XCTestCase {
       XCTFail("Expected cancellation to win over \(authorization)")
     } catch is CancellationError {
     }
+
+    XCTAssertEqual(
+      recorder.requests.map(\.path),
+      [
+        "/v2/oauth2/oob/code/READY",
+        "/v2/oauth/grants/logout",
+      ]
+    )
+    XCTAssertTrue(delegate.errors.isEmpty, "best-effort revoke failure must not reach delegate")
   }
 
   // Cancellation while a poll request is in flight. URLSession fails the request with
@@ -631,6 +799,29 @@ private final class PollCounter: @unchecked Sendable {
     defer { lock.unlock() }
     count += 1
     return count
+  }
+}
+
+private struct RecordedRequest: Equatable, Sendable {
+  let method: String
+  let path: String
+  let authorization: String?
+}
+
+private final class RequestRecorder: @unchecked Sendable {
+  private let lock = NSLock()
+  private var recorded: [RecordedRequest] = []
+
+  var requests: [RecordedRequest] {
+    lock.lock()
+    defer { lock.unlock() }
+    return recorded
+  }
+
+  func record(method: String, path: String, authorization: String?) {
+    lock.lock()
+    recorded.append(RecordedRequest(method: method, path: path, authorization: authorization))
+    lock.unlock()
   }
 }
 

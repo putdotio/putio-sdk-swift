@@ -274,6 +274,34 @@ final class PutioSDKConfigTests: XCTestCase {
     XCTAssertEqual(populated.recording("   "), populated.items)
   }
 
+  func testGetSearchHistoryConfigSkipsNonStringElementsAndPreservesEnabledFlag() async throws {
+    var call = 0
+    try installMockRequestHandler { request in
+      call += 1
+      let payload: String
+      switch call {
+      case 1:
+        payload =
+          #"{"status":"OK","config":{"searchHistory":["a",42,true,null,{"x":1},["nested"],"b"],"searchHistoryEnabled":false}}"#
+      case 2:
+        payload = #"{"status":"OK","config":{"searchHistory":null,"searchHistoryEnabled":false}}"#
+      default:
+        payload = #"{"status":"OK","config":{"searchHistory":[1,false,null,{}]}}"#
+      }
+      return (makeHTTPResponse(for: request, statusCode: 200), Data(payload.utf8))
+    }
+
+    let sdk = makeSDK()
+    let mixed = try await sdk.getSearchHistoryConfig()
+    XCTAssertEqual(mixed, PutioSearchHistoryConfig(items: ["a", "b"], isEnabled: false))
+
+    let nullHistory = try await sdk.getSearchHistoryConfig()
+    XCTAssertEqual(nullHistory, PutioSearchHistoryConfig(items: [], isEnabled: false))
+
+    let allInvalid = try await sdk.getSearchHistoryConfig()
+    XCTAssertEqual(allInvalid, PutioSearchHistoryConfig(items: [], isEnabled: true))
+  }
+
   func testSetAndClearSearchHistoryRoundTripConfigKeys() async throws {
     var writes: [(path: String, body: String)] = []
     try installMockRequestHandler { request in

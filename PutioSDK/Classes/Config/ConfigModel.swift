@@ -18,7 +18,20 @@ public struct PutioSearchHistoryConfig: Codable, Equatable, Sendable {
 
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    let rawItems = try container.decodeIfPresent([String].self, forKey: .items) ?? []
+    var rawItems: [String] = []
+    if container.contains(.items), try !container.decodeNil(forKey: .items) {
+      var itemsContainer = try container.nestedUnkeyedContainer(forKey: .items)
+      while !itemsContainer.isAtEnd {
+        if try itemsContainer.decodeNil() {
+          continue
+        }
+        if let item = try? itemsContainer.decode(String.self) {
+          rawItems.append(item)
+        } else {
+          _ = try itemsContainer.decode(IgnoredJSONValue.self)
+        }
+      }
+    }
     self.items = Self.normalized(rawItems)
     self.isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
   }
@@ -89,4 +102,8 @@ public enum PutioConfigUpdate: Sendable {
       return .string(playbackType.rawValue)
     }
   }
+}
+
+private struct IgnoredJSONValue: Decodable {
+  init(from decoder: Decoder) throws {}
 }
