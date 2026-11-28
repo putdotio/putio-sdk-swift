@@ -23,18 +23,8 @@ The [Makefile](./Makefile) lists what each target runs.
 `make live-test` runs `PutioSDKLiveTests` against a real put.io test account.
 It is opt-in and outside `make verify`.
 
-Maintainers with an authorized age identity write the ignored, owner-only
-`.env.local` from the supplied SOPS ciphertext (SOPS 3.10+):
-
-```bash
-PUTIO_SDK_SWIFT_SOPS_FILE=/path/to/swift.sops.env make secrets-setup
-make live-test
-make secrets-clean   # before you remove the worktree
-```
-
-To use your own credentials, copy [.env.example](./.env.example) to
-`.env.local`. Keep ciphertext coordinates and age identities out of this public
-repository.
+Pass credentials through the environment or copy [.env.example](./.env.example)
+to the gitignored `.env.local`, then run `make live-test`.
 
 ### Safety Rules
 

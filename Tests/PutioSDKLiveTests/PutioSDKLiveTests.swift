@@ -58,7 +58,7 @@ final class PutioSDKLiveTests: XCTestCase {
 
       _ = try await sdk.restoreTrashFiles(fileIDs: [createdID], cursor: nil)
 
-      let restored = try await sdk.getFile(fileID: createdID)
+      let restored = try await waitForFileReachable(sdk: sdk, fileID: createdID)
       XCTAssertEqual(restored.id, createdID)
     } catch {
       try await cleanup(sdk: sdk, fileID: createdID)
@@ -203,6 +203,20 @@ final class PutioSDKLiveTests: XCTestCase {
   private func cleanup(sdk: PutioSDK, fileID: Int) async throws {
     _ = try? await sdk.deleteFiles(fileIDs: [fileID])
     _ = try? await sdk.deleteTrashFiles(fileIDs: [fileID], cursor: nil)
+  }
+
+  private func waitForFileReachable(sdk: PutioSDK, fileID: Int) async throws -> PutioFile {
+    var lastError: Error?
+    for _ in 0..<10 {
+      do {
+        return try await sdk.getFile(fileID: fileID)
+      } catch {
+        lastError = error
+        try await Task.sleep(nanoseconds: 500_000_000)
+      }
+    }
+
+    throw lastError ?? URLError(.resourceUnavailable)
   }
 
   func testAudioPlaybackSourceResolvesAgainstRealAPI() async throws {
