@@ -899,7 +899,8 @@ final class PutioSDKFilesTests: XCTestCase {
       mp4Size: true,
       startFrom: true,
       streamURL: true,
-      mp4StreamURL: true
+      mp4StreamURL: true,
+      videoMetadata: true
     )
     let deleteOptions = PutioFileDeleteOptions(skipNonexistents: false, skipOwnerCheck: true)
     let searchQuery = PutioFileSearchQuery(keyword: "matrix", perPage: 10, types: [.video, .audio])
@@ -928,10 +929,12 @@ final class PutioSDKFilesTests: XCTestCase {
     XCTAssertNil(defaultDetailsParams["mp4_size"])
     XCTAssertNil(defaultDetailsParams["stream_url"])
     XCTAssertNil(defaultDetailsParams["mp4_stream_url"])
+    XCTAssertNil(defaultDetailsParams["video_metadata"])
     XCTAssertEqual(detailsQuery.parameters["mp4_size"], .integer(1))
     XCTAssertEqual(detailsQuery.parameters["start_from"], .integer(1))
     XCTAssertEqual(detailsQuery.parameters["stream_url"], .integer(1))
     XCTAssertEqual(detailsQuery.parameters["mp4_stream_url"], .integer(1))
+    XCTAssertEqual(detailsQuery.parameters["video_metadata"], .integer(1))
     XCTAssertEqual(deleteOptions.parameters["skip_nonexistents"], .bool(false))
     XCTAssertEqual(deleteOptions.parameters["skip_owner_check"], .bool(true))
     XCTAssertNil(deleteOptions.parameters["skip_trash"])

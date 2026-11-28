@@ -312,6 +312,7 @@ public struct PutioFileDetailsQuery: Sendable {
   public let mp4StreamURL: Bool
   public let mediaInfo: Bool
   public let mp4Status: Bool
+  public let videoMetadata: Bool
 
   public init(
     mp4Size: Bool = false,
@@ -319,7 +320,8 @@ public struct PutioFileDetailsQuery: Sendable {
     streamURL: Bool = false,
     mp4StreamURL: Bool = false,
     mediaInfo: Bool = false,
-    mp4Status: Bool = false
+    mp4Status: Bool = false,
+    videoMetadata: Bool = false
   ) {
     self.mp4Size = mp4Size
     self.startFrom = startFrom
@@ -327,6 +329,7 @@ public struct PutioFileDetailsQuery: Sendable {
     self.mp4StreamURL = mp4StreamURL
     self.mediaInfo = mediaInfo
     self.mp4Status = mp4Status
+    self.videoMetadata = videoMetadata
   }
 
   var parameters: PutioRequestParameters {
@@ -337,6 +340,7 @@ public struct PutioFileDetailsQuery: Sendable {
     if mp4StreamURL { query["mp4_stream_url"] = 1 }
     if mediaInfo { query["media_info"] = 1 }
     if mp4Status { query["mp4_status"] = 1 }
+    if videoMetadata { query["video_metadata"] = 1 }
     return query
   }
 }
