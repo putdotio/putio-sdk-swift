@@ -22,7 +22,7 @@
 
 ## Installation
 
-Requires Xcode 26 or newer. The Swift Package targets iOS, macOS, Mac Catalyst, tvOS, and watchOS 26.
+Requires Xcode 26 or newer on Apple platforms (iOS, macOS, Mac Catalyst, tvOS, and watchOS 26), or Swift 6.2 or newer on Linux.
 
 Install with Swift Package Manager in Xcode using:
 
@@ -34,7 +34,7 @@ Or add it to `Package.swift` and depend on the `PutioSDK` product:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/putdotio/putio-sdk-swift.git", from: "4.0.0")
+    .package(url: "https://github.com/putdotio/putio-sdk-swift.git", from: "5.0.0")
 ]
 ```
 
@@ -63,7 +63,7 @@ Task {
 }
 ```
 
-Every network call is `async throws` over native `URLSession`; there is no third-party networking dependency. URL builders and callback parsing are synchronous.
+Network calls are `async throws` over `URLSession`; URL builders and callback parsing are synchronous.
 
 Pass your own `URLSession` for tests, fixtures, or custom session configuration:
 
@@ -85,6 +85,8 @@ Public async methods run on the caller's actor.
   response models on one actor; never capture them in detached or concurrent
   tasks.
 - Pass only `Sendable` inputs and immutable results between actors.
+- `PutioSDKDelegate.onPutioSDKError(error:)` runs on the global executor; hop to
+  your actor before mutating actor-isolated state.
 
 ## Error Handling
 
@@ -104,11 +106,12 @@ do {
 }
 ```
 
-## Video Playback
+## Media Playback
 
 Media URLs carry the account's download token, never the OAuth token. The download token
 authorizes only media endpoints (streams, HLS, downloads, subtitles), so hand it to players,
-cast receivers, and ecosystem apps. Fetch it once from account info:
+cast receivers, and ecosystem apps. Media URLs are still bearer credentials for the account's
+files: never log or persist them. Fetch the download token once from account info:
 
 ```swift
 let account = try await sdk.getAccountInfo(query: PutioAccountInfoQuery(downloadToken: true))
@@ -140,10 +143,10 @@ play(url: source.url, startingAt: source.startFrom)
 
 Passing a non-audio file throws `PutioAudioPlaybackResolutionError.unsupportedFileType`.
 
-`resolvePlayback` plans a play under a Playback method, the way every put.io client picks what
-plays. Standard plays HLS. Direct play asks for `media_info` and calls your device check only for a
-probed original with no playback issue; otherwise it falls back to the converted MP4, then to
-conversion, then to `unplayable`, each with its reason code:
+`resolvePlayback` picks a stream for a `PutioStreamingMethod`. `.standard` returns HLS.
+`.directPlay` requests `media_info` and calls your `canPlayOriginal` closure when `media_info` is
+present with no playback issues; otherwise it falls back to converted MP4, `.conversionRequired`,
+or `.unplayable`, each with a `PutioPlaybackReason`:
 
 ```swift
 let plan = try await sdk.resolvePlayback(
@@ -161,17 +164,17 @@ case .unplayable(let reason):
 }
 ```
 
-Video streams expose optional `bitDepth`, `isHDR`, and `dolbyVisionProfile`. For the default audio
-stream, use the first audio stream with `isDefault == true`, or the first audio stream if none is
-flagged. Missing stream metadata decodes as `nil`.
+For the default audio stream in `PutioMediaInfo.streams`, pick the first audio stream with
+`isDefault == true`, or fall back to the first audio stream. See
+[MediaInfoModel.swift](./PutioSDK/Classes/Files/MediaInfoModel.swift) for stream fields.
 
-When the original fails before its first frame, resolve again with a device check that returns
-`.unsupported(.decoderError)`. The SDK never asks HLS for an original.
+If the original fails before its first frame, call `resolvePlayback` again with a closure returning
+`.unsupported(.decoderError)`. Direct play only falls back to converted MP4, conversion, or
+`.unplayable`.
 
-`PutioFile` and `PutioNextFile` also build these URLs directly from a download token;
-`PutioFile.getFileStreamURL` returns the original file's stream.
-
-Media URLs are still bearer credentials for the account's files: never log or persist them.
+`PutioFile` (`getStreamURL`, `getHlsStreamURL`, `getFileStreamURL`, `getAudioStreamURL`,
+`getDownloadURL`, `getMp4DownloadURL`) and `PutioNextFile` (`getStreamURL`) also build
+`https://api.put.io/v2` media URLs directly from a download token.
 
 ## App Config
 
@@ -187,8 +190,7 @@ nonisolated struct AppConfig: Decodable {
     case autoplayNextVideo = "autoplay_next_video"
   }
 
-  // The document only holds keys some client has written; missing keys are
-  // the app's defaults, not decoding failures.
+  // Decode absent keys with your app's defaults; the server returns only keys a client has written.
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     autoplayNextVideo = try container.decodeIfPresent(Bool.self, forKey: .autoplayNextVideo) ?? false
@@ -201,7 +203,7 @@ _ = try await sdk.setConfigValue(key: "autoplay_next_video", true)
 
 ## Authentication Example
 
-The [example app](./Example/README.md) runs a minimal `ASWebAuthenticationSession` flow with your own client ID and redirect URI, then fetches the account ([ViewController.swift](./Example/PutioSDK/ViewController.swift)).
+The [example app](./Example/README.md) runs an `ASWebAuthenticationSession` flow with your client ID and the `putioswift://auth` redirect URI, then fetches the account and lists root files ([ViewController.swift](./Example/PutioSDK/ViewController.swift)).
 
 Generate a state with `try PutioSDK.generateOAuthState()`, pass it to `getAuthURL(redirectURI:state:)`, then extract the token with `accessToken(fromOAuthCallback:expectedScheme:expectedHost:expectedState:)`, which rejects callbacks whose state does not match.
 

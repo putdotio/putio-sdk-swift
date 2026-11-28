@@ -10,16 +10,17 @@ Public Swift SDK for the put.io API; its first-party consumer is
   and token-scope details out of code, docs, and the example app, and use
   placeholders such as `<your-client-id>`.
 - Live-test credentials can be passed via environment variables or an ignored
-  `.env.local`; remove any local `.env.local` before removing a worktree.
+  `.env.local`; remove any local `.env` or `.env.local` before removing a
+  worktree.
 - Public `Sendable` conformances are API. Never add `@unchecked Sendable` to a
-  type that is not thread-safe. Making the `open` class models or
-  `PutioClearDataOptionKeys` `Sendable` breaks the API and needs a major release.
+  type that is not thread-safe. Making the `open` class models `Sendable` breaks
+  the API and needs a major release.
 
 ## Skills
 
 - Async/await, actors, isolation, or `Sendable`: `swift-concurrency`.
-- Writing or restructuring tests: `swift-testing-expert`. It does not authorize
-  an XCTest migration.
+- Writing or restructuring tests: `swift-testing-expert`. Keep existing suites
+  on XCTest.
 
 ## Formatting
 
