@@ -170,8 +170,9 @@ extension PutioSDK {
   /// cancellation point: before each poll, after it completes, during the sleep between
   /// polls, or while a poll request is in flight (URLSession reports the latter as
   /// `URLError.cancelled`, which is normalized here and not reported to `delegate`).
-  /// A poll that has already produced a result when cancellation arrives is discarded
-  /// in favour of `CancellationError`.
+  /// If cancellation arrives after a poll has already received a token, that token is
+  /// revoked via `logout(token:)` on a best-effort basis before `CancellationError` is
+  /// thrown so it does not remain as an unused grant.
   ///
   /// `pollInterval` is clamped to at least one second so a misconfigured or
   /// nonpositive value cannot hammer the endpoint into rate limiting.
@@ -206,7 +207,17 @@ extension PutioSDK {
       }
 
       await deviceCodePollObserver?(.pollCompleted)
-      try Task.checkCancellation()
+      if Task.isCancelled {
+        if case .authorized(let token) = authorization {
+          let revokeConfig = config
+          let session = urlSession
+          await Task {
+            let client = PutioSDK(config: revokeConfig, urlSession: session)
+            _ = try? await client.logout(token: token)
+          }.value
+        }
+        throw CancellationError()
+      }
       if let authorization {
         return authorization
       }
@@ -226,6 +237,16 @@ extension PutioSDK {
 
   public func logout() async throws -> PutioOKResponse {
     try await request("/oauth/grants/logout", method: .post, as: PutioOKResponse.self)
+  }
+
+  /// Revokes a specific OAuth token instead of the token configured on this client.
+  public func logout(token: String) async throws -> PutioOKResponse {
+    try await request(
+      "/oauth/grants/logout",
+      method: .post,
+      headers: ["Authorization": "token \(token)"],
+      as: PutioOKResponse.self
+    )
   }
 
   // MARK: two-factor

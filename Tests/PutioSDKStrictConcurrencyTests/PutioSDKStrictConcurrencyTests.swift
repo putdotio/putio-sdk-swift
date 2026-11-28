@@ -117,6 +117,8 @@ private func auditAsyncConsumerSurface(_ sdk: PutioSDK) async throws {
   _ = try await sdk.getAuthCode()
   _ = try await sdk.awaitDeviceCodeAuthorization(code: "code")
   _ = try await sdk.validateToken(token: "token")
+  _ = try await sdk.logout()
+  _ = try await sdk.logout(token: "token")
   _ = try await sdk.getRecoveryCodes()
   _ = try await sdk.getConfig(as: [String: Bool].self)
   _ = try await sdk.getConfigValue(key: "key", as: Bool.self)
