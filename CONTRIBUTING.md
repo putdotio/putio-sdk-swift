@@ -2,9 +2,9 @@
 
 ## Setup
 
-Requires Xcode 26 or newer (Swift 6.2) and Node `20.19+` or `22.12+` for the
-Markdown check. The [example app](./Example/README.md) links the package from
-this checkout.
+Requires Xcode 26 or newer (Swift 6.2) on macOS, or Swift 6.2+ on Linux for
+`make verify-linux`, plus Node `20.19+` or `22.12+` for the Markdown check. The
+[example app](./Example/README.md) links the package from this checkout.
 
 ## Validation
 
@@ -44,10 +44,9 @@ Excluded:
 
 ## Releases
 
-Merging to `main` publishes: [semantic-release](./.releaserc.json) tags a
-release when the commits include `feat`, `fix`, `perf`, a revert, or a breaking
-change, so the commit type decides the release. To recover a tag without its
-GitHub Release, dispatch [CI](./.github/workflows/ci.yml) with
+Merging to `main` publishes via [semantic-release](./.releaserc.json) using
+Conventional Commits; the commit type decides the version bump. To recover a tag
+without its GitHub Release, dispatch [CI](./.github/workflows/ci.yml) with
 `recover_version`.
 
 Keep the `release` Environment's deployment policy restricted to `main`. It is
